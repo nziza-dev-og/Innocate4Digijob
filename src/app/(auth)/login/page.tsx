@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,8 +18,10 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { Asterisk } from "lucide-react";
+import { Asterisk, Loader2 } from "lucide-react";
 import { DecorativeAuthElements } from "@/components/auth/decorative-elements";
+import { useAuth } from "@/hooks/use-auth-hook";
+import { useState } from "react";
 
 const loginFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -30,6 +33,8 @@ type LoginFormValues = z.infer<typeof loginFormSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { signIn, loading: authLoading, error: authError } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -40,12 +45,27 @@ export default function LoginPage() {
   });
 
   async function onSubmit(values: LoginFormValues) {
-    console.log("Login submitted", values);
-    toast({
-      title: "Login Attempted (Simulated)",
-      description: "Login functionality is not yet implemented.",
-    });
-    // router.push("/admin/dashboard"); // Example navigation
+    setIsSubmitting(true);
+    const user = await signIn(values.email, values.password);
+    setIsSubmitting(false);
+
+    if (user) {
+      toast({
+        title: "Login Successful",
+        description: "Welcome back!",
+      });
+      // Check if user is admin and redirect accordingly
+      // This logic might be better in useAuth or a central place if roles are complex
+      // For now, let's assume useAuth handles `isUserAdmin` update and we navigate based on that
+      // or simply navigate to dashboard and let ProtectedRoute handle admin access
+      router.push("/admin/dashboard"); 
+    } else {
+      toast({
+        title: "Login Failed",
+        description: authError?.message || "Invalid email or password. Please try again.",
+        variant: "destructive",
+      });
+    }
   }
 
   return (
@@ -104,8 +124,8 @@ export default function LoginPage() {
                     <Button variant="link" className="px-0 text-muted-foreground hover:text-accent text-xs h-auto py-0">Forgot password?</Button>
                   </Link>
                 </div>
-                <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground h-12 text-base">
-                  Sign In
+                <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground h-12 text-base" disabled={isSubmitting || authLoading}>
+                  {isSubmitting || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sign In"}
                 </Button>
               </form>
             </Form>

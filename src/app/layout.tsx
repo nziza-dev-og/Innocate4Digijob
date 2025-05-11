@@ -1,8 +1,10 @@
+
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthAwareLayout } from '@/components/layout/auth-aware-layout';
+import { AuthProvider } from '@/hooks/use-auth-hook';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -27,9 +29,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full`}>
       <body className="antialiased flex flex-col min-h-screen text-foreground bg-background">
-        <AuthAwareLayout>
-          {children}
-        </AuthAwareLayout>
+        <AuthProvider>
+          <AuthAwareLayout>
+            {children}
+          </AuthAwareLayout>
+        </AuthProvider>
         <Toaster />
       </body>
     </html>

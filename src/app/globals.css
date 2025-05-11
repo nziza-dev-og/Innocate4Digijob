@@ -1,99 +1,97 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 130 40% 93%; /* Light Green: #E0F2E3 */
-    --foreground: 150 60% 10%; /* Dark Green Text: #0A2917 */
+    /* Dobson School Theme - Light */
+    --background: 210 20% 98%; /* Very light blue-gray */
+    --foreground: 210 10% 23%; /* Dark gray for text */
 
-    --card: 0 0% 100%; /* White for inputs/cards */
-    --card-foreground: 150 60% 10%; /* Dark Green Text on cards */
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 210 10% 23%; /* Dark gray text on cards */
 
     --popover: 0 0% 100%; /* White */
-    --popover-foreground: 150 60% 10%;
+    --popover-foreground: 210 10% 23%;
 
-    --primary: 150 60% 15%; /* Dark Green for auth header: #0F3D23 */
+    --primary: 350 80% 60%; /* Reddish-pink (e.g., Dobson School logo) */
     --primary-foreground: 0 0% 100%; /* White text on primary */
 
-    --secondary: 130 30% 88%; /* Lighter Green: #D9EBDC */
-    --secondary-foreground: 150 60% 10%;
+    --secondary: 210 20% 94%; /* Lighter blue-gray for section backgrounds */
+    --secondary-foreground: 210 10% 40%; /* Darker gray text on secondary */
 
-    --muted: 130 25% 85%; /* Muted Green: #CFE5D3 */
-    --muted-foreground: 150 40% 30%; /* Darker Muted Green: #326149 */
+    --muted: 210 20% 88%; /* Muted light blue-gray */
+    --muted-foreground: 210 10% 50%; /* Muted gray text */
 
-    --accent: 120 65% 45%; /* Vibrant Green for buttons: #38B03C */
+    --accent: 210 90% 55%; /* Bright blue (buttons, highlights) */
     --accent-foreground: 0 0% 100%; /* White text on accent */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 130 30% 80%; /* Subtle Green Border: #C6E0CA */
-    --input: 0 0% 100%; /* White for input background */
-    --ring: 120 65% 45%; /* Accent green for rings */
+    --border: 210 15% 88%; /* Light gray-blue border */
+    --input: 210 15% 93%; /* Light gray for input background (e.g., search) */
+    --ring: 210 90% 65%; /* Accent blue for rings */
 
-    --radius: 1rem; /* Increased default radius for rounded elements */
+    --radius: 0.5rem; /* Default radius for rounded elements */
 
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    /* Chart colors can be more specific if needed */
+    --chart-1: 210 90% 55%; /* Accent blue */
+    --chart-2: 30 90% 60%;  /* Orange/Yellow */
+    --chart-3: 150 70% 45%; /* Green */
+    --chart-4: 270 80% 65%; /* Purple */
+    --chart-5: 0 0% 60%; /* Gray */
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar specific colors (Dobson School design) */
+    --sidebar-background: 0 0% 100%; /* White */
+    --sidebar-foreground: 210 10% 45%; /* Gray for text */
+    --sidebar-border: 210 15% 90%; /* Light border for sidebar */
+    --sidebar-accent: 210 40% 96%; /* Very light blue for hover/active items background */
+    --sidebar-accent-foreground: 350 75% 58%; /* Primary color (reddish-pink) for active item text/icon */
+    --sidebar-primary: 350 80% 60%; /* For logo text or important sidebar elements */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-ring: 210 90% 65%;
   }
 
   .dark {
-    /* Keeping dark theme colors, but auth pages will primarily use light theme overrides */
-    --background: 210 10% 15%;
-    --foreground: 210 17% 90%;
+    /* Define dark theme variables - for now, keeping simple inversion or similar to light */
+    --background: 210 10% 12%; 
+    --foreground: 210 10% 85%;
 
-    --card: 210 10% 10%;
-    --card-foreground: 210 17% 90%;
+    --card: 210 10% 15%;
+    --card-foreground: 210 10% 85%;
 
-    --popover: 210 10% 10%;
-    --popover-foreground: 210 17% 90%;
+    --popover: 210 10% 15%;
+    --popover-foreground: 210 10% 85%;
 
-    --primary: 150 50% 55%; /* Dark Green for auth header - dark mode variant */
-    --primary-foreground: 0 0% 100%; 
+    --primary: 350 70% 55%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 10% 25%;
-    --secondary-foreground: 210 17% 90%;
+    --secondary: 210 10% 20%;
+    --secondary-foreground: 210 10% 70%;
 
     --muted: 210 10% 25%;
-    --muted-foreground: 210 17% 65%;
+    --muted-foreground: 210 10% 60%;
 
-    --accent: 120 60% 55%; /* Vibrant Green for buttons - dark mode variant */
-    --accent-foreground: 210 10% 5%; 
+    --accent: 210 80% 60%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 210 10% 30%;
-    --input: 210 10% 20%; /* Darker input for dark mode if not overridden */
-    --ring: 120 60% 55%;
+    --border: 210 10% 25%;
+    --input: 210 10% 22%;
+    --ring: 210 80% 70%;
     
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-background: 210 10% 10%;
+    --sidebar-foreground: 210 10% 75%;
+    --sidebar-border: 210 10% 20%;
+    --sidebar-accent: 210 10% 18%;
+    --sidebar-accent-foreground: 350 70% 60%;
+    --sidebar-primary: 350 70% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 210 80% 70%;
   }
 }
 

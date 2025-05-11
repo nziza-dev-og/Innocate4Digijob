@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,8 +18,10 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { Asterisk } from "lucide-react";
+import { Asterisk, Loader2 } from "lucide-react";
 import { DecorativeAuthElements } from "@/components/auth/decorative-elements";
+import { useAuth } from "@/hooks/use-auth-hook";
+import { useState } from "react";
 
 const registerFormSchema = z.object({
   fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
@@ -35,6 +38,8 @@ type RegisterFormValues = z.infer<typeof registerFormSchema>;
 export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { signUp, loading: authLoading, error: authError } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerFormSchema),
@@ -47,12 +52,24 @@ export default function RegisterPage() {
   });
 
   async function onSubmit(values: RegisterFormValues) {
-    console.log("Registration submitted", values);
-    toast({
-      title: "Registration Attempted (Simulated)",
-      description: "Registration functionality is not yet implemented.",
-    });
-    // router.push("/login"); 
+    setIsSubmitting(true);
+    // Default role can be 'student' or 'user'. Admins would typically be set manually or via a separate process.
+    const user = await signUp(values.email, values.password, values.fullName, "user");
+    setIsSubmitting(false);
+
+    if (user) {
+      toast({
+        title: "Registration Successful",
+        description: "Your account has been created. Please login.",
+      });
+      router.push("/login"); 
+    } else {
+       toast({
+        title: "Registration Failed",
+        description: authError?.message || "Could not create account. Please try again.",
+        variant: "destructive",
+      });
+    }
   }
 
   return (
@@ -132,8 +149,8 @@ export default function RegisterPage() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground h-12 text-base">
-                  Create Account
+                <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground h-12 text-base" disabled={isSubmitting || authLoading}>
+                  {isSubmitting || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Create Account"}
                 </Button>
               </form>
             </Form>

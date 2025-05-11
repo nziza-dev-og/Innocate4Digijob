@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -50,21 +51,22 @@ export default {
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
   			},
+        // Updated sidebar colors to match the new theme
   			sidebar: {
-  				DEFAULT: 'hsl(var(--sidebar-background))',
+  				DEFAULT: 'hsl(var(--sidebar-background))', // Use --sidebar-background for the sidebar itself
   				foreground: 'hsl(var(--sidebar-foreground))',
-  				primary: 'hsl(var(--sidebar-primary))',
+  				primary: 'hsl(var(--sidebar-primary))', // For logo or very important elements in sidebar
   				'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-  				accent: 'hsl(var(--sidebar-accent))',
-  				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
+  				accent: 'hsl(var(--sidebar-accent))', // For hover/active item background
+  				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))', // For hover/active item text/icon
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
   			}
   		},
   		borderRadius: {
-        lg: "var(--radius)", // Typically 1rem if --radius is 1rem
-        md: "calc(var(--radius) - 0.25rem)", // Typically 0.75rem
-        sm: "calc(var(--radius) - 0.5rem)", // Typically 0.5rem
+        lg: "var(--radius)", 
+        md: "calc(var(--radius) - 0.125rem)", // Slightly adjusted from 0.25 for finer control if needed
+        sm: "calc(var(--radius) - 0.25rem)", // Slightly adjusted from 0.5
         full: "9999px",
       },
   		keyframes: {

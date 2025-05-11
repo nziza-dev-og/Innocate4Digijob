@@ -4,9 +4,11 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Sparkles, UserCircle, LogIn, UserPlus, ShieldCheck } from 'lucide-react';
+import { Menu, Sparkles, UserCircle, LogIn, UserPlus, LogOut as LogOutIcon, LayoutDashboard } from 'lucide-react';
 import * as React from 'react';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/hooks/use-auth-hook';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const mainNavLinks = [
   { href: '#home', label: 'Home' },
@@ -18,16 +20,11 @@ const mainNavLinks = [
   { href: '#contact', label: 'Contact' },
 ];
 
-// Placeholder for authentication state
-// In a real app, this would come from a context or auth hook
-const isAuthenticated = false; // Set to true to see Admin link
-const isAdminUser = true; // Placeholder for admin role check
-
 export function Navbar() {
   const [isOpen, setIsOpen] = React.useState(false);
   const pathname = usePathname();
+  const { user, signOut, isUserAdmin, loading } = useAuth();
 
-  // Hide main navigation on auth and admin pages
   const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register') || pathname.startsWith('/forgot-password');
   const isAdminPage = pathname.startsWith('/admin');
 
@@ -37,6 +34,51 @@ export function Navbar() {
 
   const navLinksToDisplay = isAuthPage ? [] : mainNavLinks;
 
+  const renderAuthButtons = (isMobile = false) => {
+    if (loading) return null; // Or a skeleton loader
+
+    if (user) {
+      return (
+        <>
+          {isUserAdmin && (
+            <Button variant="ghost" asChild className={isMobile ? "w-full justify-start text-lg" : "hidden md:inline-flex"}>
+              <Link href="/admin/dashboard" onClick={() => isMobile && setIsOpen(false)}>
+                <LayoutDashboard className="mr-2 h-4 w-4" /> Admin Panel
+              </Link>
+            </Button>
+          )}
+          {isMobile ? (
+            <Button variant="ghost" onClick={() => { signOut(); setIsOpen(false); }} className="w-full justify-start text-lg">
+              <LogOutIcon className="mr-2 h-5 w-5" /> Logout
+            </Button>
+          ) : (
+            <Button variant="outline" size="icon" onClick={signOut}>
+              <Avatar className="h-8 w-8">
+                 <AvatarImage src={user.photoURL || `https://picsum.photos/40/40?u=${user.uid}`} alt={user.displayName || "User"} />
+                 <AvatarFallback>{user.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
+              </Avatar>
+            </Button>
+          )}
+        </>
+      );
+    } else {
+      if (isAuthPage) return null;
+      return (
+        <>
+          <Button variant="ghost" asChild className={isMobile ? "w-full justify-start text-lg" : "hidden md:inline-flex"}>
+            <Link href="/login" onClick={() => isMobile && setIsOpen(false)}>
+              <LogIn className="mr-2 h-4 w-4" /> Login
+            </Link>
+          </Button>
+          <Button asChild className={isMobile ? "w-full justify-start text-lg bg-accent hover:bg-accent/90 text-accent-foreground mt-2" : "hidden md:inline-flex bg-accent hover:bg-accent/90"}>
+            <Link href="/register" onClick={() => isMobile && setIsOpen(false)}>
+              <UserPlus className="mr-2 h-4 w-4" /> Register
+            </Link>
+          </Button>
+        </>
+      );
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -61,40 +103,8 @@ export function Navbar() {
         )}
 
         <div className="flex items-center gap-2">
-          {isAuthenticated ? (
-            <>
-              {isAdminUser && (
-                <Button variant="ghost" asChild className="hidden md:inline-flex">
-                  <Link href="/admin/dashboard">
-                    <ShieldCheck className="mr-2 h-4 w-4" /> Admin Panel
-                  </Link>
-                </Button>
-              )}
-              {/* Replace with User Avatar/Dropdown for logged-in user */}
-              <Button variant="outline" size="icon">
-                <UserCircle className="h-5 w-5" />
-              </Button>
-            </>
-          ) : (
-            <>
-             {!isAuthPage && (
-                <>
-                    <Button variant="ghost" asChild className="hidden md:inline-flex">
-                    <Link href="/login">
-                        <LogIn className="mr-2 h-4 w-4" /> Login
-                    </Link>
-                    </Button>
-                    <Button asChild className="hidden md:inline-flex bg-accent hover:bg-accent/90">
-                    <Link href="/register">
-                        <UserPlus className="mr-2 h-4 w-4" /> Register
-                    </Link>
-                    </Button>
-                </>
-             )}
-            </>
-          )}
-
-
+          {renderAuthButtons()}
+          
           {!isAuthPage && (
             <div className="md:hidden">
               <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -117,25 +127,7 @@ export function Navbar() {
                       </Link>
                     ))}
                     <hr className="my-4" />
-                    {isAuthenticated ? (
-                       <>
-                        {isAdminUser && (
-                            <Link href="/admin/dashboard" className="text-lg font-medium text-foreground transition-colors hover:text-primary flex items-center" onClick={() => setIsOpen(false)}>
-                                <ShieldCheck className="mr-2 h-5 w-5" /> Admin Panel
-                            </Link>
-                        )}
-                         {/* Add logout or profile link here for mobile */}
-                       </>
-                    ) : (
-                      <>
-                        <Link href="/login" className="text-lg font-medium text-foreground transition-colors hover:text-primary flex items-center" onClick={() => setIsOpen(false)}>
-                          <LogIn className="mr-2 h-5 w-5" /> Login
-                        </Link>
-                        <Link href="/register" className="text-lg font-medium text-foreground transition-colors hover:text-primary flex items-center" onClick={() => setIsOpen(false)}>
-                          <UserPlus className="mr-2 h-5 w-5" /> Register
-                        </Link>
-                      </>
-                    )}
+                    {renderAuthButtons(true)}
                   </nav>
                 </SheetContent>
               </Sheet>
