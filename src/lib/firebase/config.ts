@@ -13,8 +13,10 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
+// Check if Firebase app has already been initialized to prevent errors
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 
 export { app, auth, db };
+
