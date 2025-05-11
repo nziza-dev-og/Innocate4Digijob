@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,7 +32,7 @@ type LoginFormValues = z.infer<typeof loginFormSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { signIn, loading: authLoading, error: authError } = useAuth();
+  const { signIn, loading: authLoading } = useAuth(); // Removed authError from here as it's handled by signIn response
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<LoginFormValues>({
@@ -46,23 +45,25 @@ export default function LoginPage() {
 
   async function onSubmit(values: LoginFormValues) {
     setIsSubmitting(true);
-    const user = await signIn(values.email, values.password);
-    setIsSubmitting(false);
+    const { user: loggedInUser, isAdmin } = await signIn(values.email, values.password);
+    setIsSubmitting(false); // Set submitting to false after signIn completes
 
-    if (user) {
+    if (loggedInUser) {
       toast({
         title: "Login Successful",
-        description: "Welcome back!",
+        description: "Welcome back! Redirecting...",
       });
-      // Check if user is admin and redirect accordingly
-      // This logic might be better in useAuth or a central place if roles are complex
-      // For now, let's assume useAuth handles `isUserAdmin` update and we navigate based on that
-      // or simply navigate to dashboard and let ProtectedRoute handle admin access
-      router.push("/admin/dashboard"); 
+      if (isAdmin) {
+        router.push("/admin/dashboard");
+      } else {
+        router.push("/dashboard");
+      }
     } else {
+      // Error is implicitly handled by the signIn function setting its internal error state
+      // and returning null for user. useAuth().error can be used if needed elsewhere.
       toast({
         title: "Login Failed",
-        description: authError?.message || "Invalid email or password. Please try again.",
+        description: "Invalid email or password. Please try again.", // Generic message
         variant: "destructive",
       });
     }

@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { User as FirebaseUser, AuthError } from "firebase/auth";
@@ -19,7 +18,7 @@ interface AuthContextType {
   loading: boolean;
   error: AuthError | null;
   signUp: (email: string, password: string, fullName?: string, role?: string) => Promise<FirebaseUser | null>;
-  signIn: (email: string, password: string) => Promise<FirebaseUser | null>;
+  signIn: (email: string, password: string) => Promise<{ user: FirebaseUser | null; isAdmin: boolean }>;
   signOut: () => Promise<void>;
   isUserAdmin: boolean;
 }
@@ -35,9 +34,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setLoading(true); // Set loading to true while checking auth state and role
       if (firebaseUser) {
         setUser(firebaseUser);
-        // Check if user is admin
         const userDocRef = doc(db, "users", firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists() && userDocSnap.data().role === "admin") {
@@ -61,16 +60,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
       if (firebaseUser) {
-        // Store additional user info in Firestore
         await setDoc(doc(db, "users", firebaseUser.uid), {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
-          fullName: fullName || "",
-          role: role, // default role
+          displayName: fullName || firebaseUser.email, // Use email as fallback for displayName
+          photoURL: firebaseUser.photoURL || null,
+          role: role, 
           createdAt: new Date().toISOString(),
         });
       }
-      setUser(firebaseUser);
+      // setUser(firebaseUser); // onAuthStateChanged will handle setting the user and role
       return firebaseUser;
     } catch (e) {
       setError(e as AuthError);
@@ -80,18 +79,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string): Promise<{ user: FirebaseUser | null; isAdmin: boolean }> => {
     setLoading(true);
     setError(null);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      setUser(userCredential.user);
-      return userCredential.user;
+      const firebaseUser = userCredential.user;
+      let isAdmin = false;
+      if (firebaseUser) {
+        // Fetch role immediately for redirect logic
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists() && userDocSnap.data().role === "admin") {
+          isAdmin = true;
+        }
+        // Update context state. onAuthStateChanged will also run but this provides immediate feedback.
+        setUser(firebaseUser); 
+        setIsUserAdmin(isAdmin);
+      }
+      setLoading(false);
+      return { user: firebaseUser, isAdmin };
     } catch (e) {
       setError(e as AuthError);
-      return null;
-    } finally {
       setLoading(false);
+      return { user: null, isAdmin: false };
     }
   };
 
