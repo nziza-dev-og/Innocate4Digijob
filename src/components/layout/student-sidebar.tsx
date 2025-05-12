@@ -22,7 +22,7 @@ import {
   UserCircle, // Student (Profile)
   MessageSquare, // Chat
   Video,      // Live Class
-  CreditCard, // Transaction
+  CreditCard, // Transaction - Still Placeholder
   Settings,
   LogOut,
   GraduationCap, // App Logo Icon
@@ -34,10 +34,10 @@ const mainNavLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutGrid, exact: true },
   { href: "/dashboard/courses", label: "Courses", icon: BookOpen },
   { href: "/dashboard/schedule", label: "Schedule", icon: CalendarDays },
-  { href: "/dashboard/profile", label: "My Profile", icon: UserCircle }, // This might link to settings or a dedicated profile page
+  { href: "/dashboard/profile", label: "My Profile", icon: UserCircle }, // Links to profile page
   { href: "/dashboard/chat", label: "Chat", icon: MessageSquare },
   { href: "/dashboard/live-class", label: "Live Class", icon: Video },
-  { href: "/dashboard/transactions", label: "Transaction", icon: CreditCard },
+  { href: "/dashboard/transactions", label: "Transaction", icon: CreditCard }, // Keep as placeholder for now
 ];
 
 export function StudentSidebar() {
@@ -47,10 +47,18 @@ export function StudentSidebar() {
 
   const activeLinkClasses = "bg-primary/10 text-primary font-semibold"; // Custom active style based on image
   const defaultLinkClasses = "hover:bg-secondary/50 text-muted-foreground";
-  const disabledLinkClasses = "opacity-50 cursor-not-allowed"; // Style for disabled links
+  const disabledLinkClasses = "opacity-50 cursor-not-allowed hover:bg-transparent text-muted-foreground/50"; // Style for disabled links
 
-  // Placeholder for which links are actually enabled
-  const enabledLinks = ["/dashboard", "/dashboard/settings", "/dashboard/profile"]; // Add more as they become functional
+  // Update enabled links based on implemented pages
+  const enabledLinks = [
+      "/dashboard", 
+      "/dashboard/settings", 
+      "/dashboard/profile",
+      "/dashboard/courses", // Enable Courses (placeholder)
+      "/dashboard/schedule", // Enable Schedule (placeholder)
+      "/dashboard/chat", // Enable Chat
+      "/dashboard/live-class", // Enable Live Class (placeholder)
+    ]; // Transactions still disabled
 
   return (
     <Sidebar variant="sidebar" side="left" collapsible="none" className="border-r bg-card shadow-sm"> {/* Changed bg-sidebar to bg-card for white */}
@@ -60,7 +68,7 @@ export function StudentSidebar() {
           <span className="font-bold text-xl text-primary">Smartings</span>
         </Link>
       </SidebarHeader>
-      
+
       <SidebarContent className="p-3 flex-grow">
         <SidebarMenu>
           {mainNavLinks.map(link => {
@@ -77,8 +85,7 @@ export function StudentSidebar() {
                     disabled={!isEnabled} // Disable button if not enabled
                     className={cn(
                     "justify-start rounded-lg w-full",
-                    isActive ? activeLinkClasses : defaultLinkClasses,
-                    !isEnabled && disabledLinkClasses // Apply disabled styles
+                     isEnabled ? (isActive ? activeLinkClasses : defaultLinkClasses) : disabledLinkClasses
                     )}
                 >
                     {isEnabled ? (
@@ -99,7 +106,7 @@ export function StudentSidebar() {
           })}
         </SidebarMenu>
       </SidebarContent>
-      
+
       <SidebarFooter className="p-3 border-t">
          <SidebarMenu>
             <SidebarMenuItem>
@@ -123,8 +130,8 @@ export function StudentSidebar() {
                     <SidebarMenuButton
                         onClick={() => { signOut(); setOpenMobile(false); }}
                         className={cn(
-                            "justify-start rounded-lg mt-2 text-red-500 hover:text-red-600",
-                            defaultLinkClasses // Use default hover from above
+                            "justify-start rounded-lg mt-2 text-red-500 hover:text-red-600 hover:bg-red-500/10", // Adjusted hover for red
+                            defaultLinkClasses // Use default hover logic but override color above
                         )}
                          tooltip={{ children: "Logout", side: "right", align: "center" }}
                     >
@@ -138,4 +145,3 @@ export function StudentSidebar() {
     </Sidebar>
   );
 }
-
