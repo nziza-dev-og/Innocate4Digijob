@@ -1,12 +1,13 @@
+
 import type { Timestamp } from 'firebase/firestore';
 
 export interface ChatMessage {
   id: string; // Firestore document ID
   chatId: string;
   senderId: string;
-  senderName?: string; 
+  senderName?: string;
   senderPhotoURL?: string;
-  receiverId?: string; // Optional, good for direct reference
+  receiverId?: string; // Only relevant for 1-on-1 chats maybe? Or ignore?
   text: string;
   timestamp: Date; // JS Date for client-side use
   firestoreTimestamp?: Timestamp; // Original Firestore timestamp
@@ -26,13 +27,19 @@ export interface AppUser { // User profile information for chat context
 }
 
 export interface ChatConversation {
-  id: string; // chat ID (e.g., combination of user UIDs or Firestore generated)
+  id: string; // chat ID
   participants: string[]; // UIDs of participants
+  type: 'one-on-one' | 'group'; // Differentiate chat types
+  groupName?: string; // Only for group chats
+  groupPhotoURL?: string; // Optional group avatar
   lastMessageText?: string;
   lastMessageTimestamp: Date; // JS Date
   firestoreLastMessageTimestamp?: Timestamp; // Original Firestore timestamp
   lastMessageSenderId?: string;
   unreadCount?: number; // for the current viewing user
-  otherUser: AppUser | null; // Details of the other participant
+  otherUser: AppUser | null; // Details of the other participant (null for group chats?)
+  // For group chats, we might store participant details differently if needed directly on the conversation doc
+  participantNames?: { [key: string]: string };
+  participantPhotoURLs?: { [key: string]: string | null };
   [key: string]: any; // For dynamic fields like uid_isRead
 }

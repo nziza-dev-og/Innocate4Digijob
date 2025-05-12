@@ -76,12 +76,13 @@ export const getEvents = async (adminOnly: boolean = true, audienceFilter?: stri
     }
   } else {
     // Fetching non-admin events (public or student)
-    if (audienceFilter && typeof audienceFilter === 'string' && audienceFilter.length > 0) {
-       // Fetch events for a specific provided audience (e.g., 'student', 'public')
+    // Ensure 'audience' field exists for this query to work best.
+    // Documents without 'audience' might not be returned by 'in' or '==' filters.
+    // If no specific filter, fetch both 'student' and 'public' events.
+    if (audienceFilter && ['student', 'public'].includes(audienceFilter)) {
        q = query(q, where('audience', '==', audienceFilter));
     } else {
-       // Fetch all generally accessible events (student or public) if no specific filter is provided
-       // Ensure 'audience' field exists for this query to work best. Documents without 'audience' might not be returned.
+       // Fetch events visible to students/public if no specific filter or an invalid one is provided
        q = query(q, where('audience', 'in', ['student', 'public']));
     }
   }
@@ -106,7 +107,7 @@ export const getEvents = async (adminOnly: boolean = true, audienceFilter?: stri
             // Optionally skip this event or handle it differently
         }
       });
-      return events; // Firestore query already sorts
+      return events;
   } catch (error) {
       console.error("Error fetching events:", error);
       // Handle specific errors if needed, e.g., permission denied
@@ -140,17 +141,6 @@ export const updateEvent = async (eventId: string, eventData: Partial<SchoolEven
       }
   }
 
-
-  // Ensure ticketsLeft is updated if totalTickets changes and ticketsLeft wasn't explicitly set
-  if (eventData.totalTickets !== undefined && eventData.ticketsLeft === undefined) {
-     // Fetch the current event to calculate ticketsLeft if necessary, or just set it based on total?
-     // Safest approach: If totalTickets is changed, maybe reset ticketsLeft to totalTickets,
-     // assuming a change in capacity means starting fresh count. Or require ticketsLeft to be passed.
-     // For now, let's assume ticketsLeft should be explicitly passed if it changes.
-     // If only totalTickets changes, maybe we assume ticketsLeft remains relative? Complex logic.
-     // Simple approach: just update fields that are passed.
-  }
-
   await updateDoc(eventDocRef, updateData);
 };
 
@@ -173,70 +163,73 @@ export const getOrCreateChatId = (userId1: string, userId2: string): string => {
   return ids.join('_');
 };
 
-// Get or create a chat document
-export const getOrCreateChatDocument = async (adminId: string, userId: string): Promise<string> => {
-  const chatId = getOrCreateChatId(adminId, userId);
+// Get or create a chat document for ONE-ON-ONE chats
+export const getOrCreateChatDocument = async (userId1: string, userId2: string): Promise<string> => {
+  const chatId = getOrCreateChatId(userId1, userId2);
   const chatDocRef = doc(db, "chats", chatId);
   const chatDocSnap = await getDoc(chatDocRef);
 
   if (!chatDocSnap.exists()) {
-    const adminDocSnap = await getDoc(doc(db, "users", adminId));
-    const userDocSnap = await getDoc(doc(db, "users", userId));
+    const user1DocSnap = await getDoc(doc(db, "users", userId1));
+    const user2DocSnap = await getDoc(doc(db, "users", userId2));
 
-    if (!adminDocSnap.exists()) {
-        console.error(`Admin user document not found for ID: ${adminId}`);
-        throw new Error("Admin user does not exist in Firestore.");
+    if (!user1DocSnap.exists() || !user2DocSnap.exists()) {
+        console.error(`One or both user documents not found for IDs: ${userId1}, ${userId2}`);
+        throw new Error("One or both users do not exist in Firestore.");
     }
-     if (!userDocSnap.exists()) {
-        console.error(`User document not found for ID: ${userId}`);
-        throw new Error("User does not exist in Firestore.");
-    }
-
 
     await setDoc(chatDocRef, {
-      participants: [adminId, userId],
-      participantNames: { // Denormalize names for easier display in chat lists
-        [adminId]: adminDocSnap.data()?.displayName || "Admin",
-        [userId]: userDocSnap.data()?.displayName || "User",
+      participants: [userId1, userId2],
+      type: 'one-on-one', // Indicate chat type
+      participantNames: {
+        [userId1]: user1DocSnap.data()?.displayName || "User 1",
+        [userId2]: user2DocSnap.data()?.displayName || "User 2",
       },
       participantPhotoURLs: {
-        [adminId]: adminDocSnap.data()?.photoURL || null,
-        [userId]: userDocSnap.data()?.photoURL || null,
+        [userId1]: user1DocSnap.data()?.photoURL || null,
+        [userId2]: user2DocSnap.data()?.photoURL || null,
       },
       createdAt: serverTimestamp(),
-      lastMessageTimestamp: serverTimestamp(), // Initialize for ordering
-      // Initialize read status for both participants
-      [`${adminId}_isRead`]: true,
-      [`${userId}_isRead`]: true,
+      lastMessageTimestamp: serverTimestamp(),
+      [`${userId1}_isRead`]: true, // Initially read for both as no messages exist
+      [`${userId2}_isRead`]: true,
     });
   }
   return chatId;
 };
 
 
-// Send a chat message
-export const sendChatMessage = async (chatId: string, senderId: string, receiverId: string, text: string): Promise<void> => {
+// Send a chat message (works for both 1-on-1 and group)
+export const sendChatMessage = async (chatId: string, senderId: string, text: string, participantIds: string[]): Promise<void> => {
   if (!text.trim()) throw new Error("Message text cannot be empty.");
-  if (!chatId || !senderId || !receiverId) throw new Error("Missing required IDs for sending chat message.");
+  if (!chatId || !senderId || !participantIds || participantIds.length === 0) throw new Error("Missing required IDs for sending chat message.");
 
   const messagesColRef = collection(db, "chats", chatId, "messages");
   await addDoc(messagesColRef, {
     senderId,
-    receiverId,
+    // No receiverId needed for group chats, simplifies logic
     text,
     timestamp: serverTimestamp(),
     status: 'sent', // Initial status
   });
 
-  // Update the parent chat document for sorting and previews
+  // Update the parent chat document
   const chatDocRef = doc(db, "chats", chatId);
-  await updateDoc(chatDocRef, {
+  const updateData: any = {
     lastMessageText: text,
     lastMessageTimestamp: serverTimestamp(),
     lastMessageSenderId: senderId,
-    [`${receiverId}_isRead`]: false, // Mark as unread for the recipient
-    [`${senderId}_isRead`]: true, // Mark as read for the sender
+  };
+  // Mark as unread for all *other* participants
+  participantIds.forEach(pid => {
+      if (pid !== senderId) {
+          updateData[`${pid}_isRead`] = false;
+      } else {
+          updateData[`${pid}_isRead`] = true; // Sender has read their own message
+      }
   });
+
+  await updateDoc(chatDocRef, updateData);
 };
 
 
@@ -248,7 +241,7 @@ export const getUsersForChat = async (currentUserId: string): Promise<ChatAppUse
   }
   const usersCollectionRef = collection(db, 'users');
   // Ensure we only query if currentUserId is valid
-  const q = query(usersCollectionRef, where('uid', '!=', currentUserId));
+  const q = query(usersCollectionRef, where('uid', '!=', currentUserId)); // Exclude self
 
   try {
     const querySnapshot = await getDocs(q);
@@ -279,7 +272,7 @@ export const getUsersForChat = async (currentUserId: string): Promise<ChatAppUse
 };
 
 
-// Stream chat messages (example, not fully integrated into the page yet for simplicity)
+// Stream chat messages (works for both 1-on-1 and group)
 export const getChatMessagesStream = (
   chatId: string,
   callback: (messages: ChatMessage[]) => void,
@@ -287,7 +280,6 @@ export const getChatMessagesStream = (
 ) => {
    if (!chatId) {
       console.error("Chat ID is required to stream messages.");
-      // Optionally call callback with empty array or handle error differently
       callback([]);
       return () => {}; // Return an empty unsubscribe function
    }
@@ -301,25 +293,23 @@ export const getChatMessagesStream = (
     const messages: ChatMessage[] = [];
     querySnapshot.forEach((doc) => {
       const data = doc.data();
-      // Ensure timestamp is valid before proceeding
       if (data.timestamp instanceof Timestamp) {
             messages.push({
                 id: doc.id,
                 chatId: chatId,
                 senderId: data.senderId,
                 text: data.text,
-                timestamp: data.timestamp.toDate(), // Convert valid timestamp
+                timestamp: data.timestamp.toDate(),
                 status: data.status,
             } as ChatMessage);
         } else {
              console.warn(`Message ${doc.id} in chat ${chatId} has invalid or pending timestamp.`);
-             // Optionally include with a default date or skip
              messages.push({
                  id: doc.id,
                  chatId: chatId,
                  senderId: data.senderId,
                  text: data.text,
-                 timestamp: new Date(), // Fallback to current time if timestamp is pending/invalid
+                 timestamp: new Date(),
                  status: data.status,
              } as ChatMessage);
         }
@@ -327,9 +317,102 @@ export const getChatMessagesStream = (
     callback(messages.reverse()); // Reverse to show oldest first
   }, (error) => {
     console.error("Error streaming messages:", error);
-    // Potentially call callback with an error state or empty array
     callback([]);
   });
 
    return unsubscribe; // Return the actual unsubscribe function
 };
+
+// --- GROUP CHAT FUNCTIONS (Placeholder - Requires UI and more logic) ---
+
+// // Create a new group chat
+// export const createGroupChat = async (groupName: string, initialParticipantIds: string[]): Promise<string> => {
+//   if (!groupName.trim()) throw new Error("Group name cannot be empty.");
+//   if (initialParticipantIds.length < 2) throw new Error("Group chat requires at least 2 participants.");
+
+//   const groupChatColRef = collection(db, "chats"); // Or a dedicated "groupChats" collection
+
+//   // Fetch participant details for denormalization
+//   const participantDocs = await Promise.all(initialParticipantIds.map(id => getDoc(doc(db, "users", id))));
+//   const participantNames: { [key: string]: string } = {};
+//   const participantPhotoURLs: { [key: string]: string | null } = {};
+//   participantDocs.forEach(docSnap => {
+//       if (docSnap.exists()) {
+//           const data = docSnap.data();
+//           participantNames[docSnap.id] = data.displayName || "User";
+//           participantPhotoURLs[docSnap.id] = data.photoURL || null;
+//       }
+//   });
+
+//   const docRef = await addDoc(groupChatColRef, {
+//     groupName: groupName,
+//     participants: initialParticipantIds,
+//     participantNames,
+//     participantPhotoURLs,
+//     type: 'group', // Indicate chat type
+//     createdAt: serverTimestamp(),
+//     lastMessageTimestamp: serverTimestamp(),
+//     // Initialize read status for all participants
+//     ...initialParticipantIds.reduce((acc, pid) => ({ ...acc, [`${pid}_isRead`]: true }), {}),
+//     // createdBy: auth.currentUser?.uid, // Optional: track who created the group
+//   });
+//   return docRef.id;
+// };
+
+// // Add participant to group chat (requires permission checks in real app)
+// export const addParticipantToGroup = async (chatId: string, userIdToAdd: string): Promise<void> => {
+//     const chatDocRef = doc(db, "chats", chatId);
+//     const chatDocSnap = await getDoc(chatDocRef);
+//     const userDocSnap = await getDoc(doc(db, "users", userIdToAdd));
+
+//     if (!chatDocSnap.exists() || !userDocSnap.exists()) {
+//         throw new Error("Chat or user does not exist.");
+//     }
+//     if (chatDocSnap.data()?.type !== 'group') {
+//         throw new Error("Cannot add participant to a non-group chat.");
+//     }
+
+//     const currentParticipants = chatDocSnap.data()?.participants || [];
+//     if (currentParticipants.includes(userIdToAdd)) {
+//         console.log("User already in group.");
+//         return; // Already a participant
+//     }
+
+//     const userData = userDocSnap.data();
+//     await updateDoc(chatDocRef, {
+//         participants: [...currentParticipants, userIdToAdd],
+//         [`participantNames.${userIdToAdd}`]: userData.displayName || "User",
+//         [`participantPhotoURLs.${userIdToAdd}`]: userData.photoURL || null,
+//         [`${userIdToAdd}_isRead`]: true, // New user starts as read
+//     });
+// };
+
+// // Remove participant from group chat (requires permission checks)
+// export const removeParticipantFromGroup = async (chatId: string, userIdToRemove: string): Promise<void> => {
+//     const chatDocRef = doc(db, "chats", chatId);
+//     const chatDocSnap = await getDoc(chatDocRef);
+
+//     if (!chatDocSnap.exists()) {
+//         throw new Error("Chat does not exist.");
+//     }
+//      if (chatDocSnap.data()?.type !== 'group') {
+//         throw new Error("Cannot remove participant from a non-group chat.");
+//     }
+
+//     const currentParticipants = chatDocSnap.data()?.participants || [];
+//     if (!currentParticipants.includes(userIdToRemove)) {
+//         console.log("User not in group.");
+//         return; // Not a participant
+//     }
+
+//     // Use dot notation for nested field removal within maps
+//     const updates: any = {
+//         participants: currentParticipants.filter((pid: string) => pid !== userIdToRemove),
+//         [`participantNames.${userIdToRemove}`]: deleteField(), // Requires importing deleteField from 'firebase/firestore'
+//         [`participantPhotoURLs.${userIdToRemove}`]: deleteField(),
+//         [`${userIdToRemove}_isRead`]: deleteField(),
+//     };
+
+//     await updateDoc(chatDocRef, updates);
+//     // Note: Need to import `deleteField` from firebase/firestore for this to work.
+// };

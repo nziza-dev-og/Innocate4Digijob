@@ -5,49 +5,45 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth-hook";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react"; // Added useMemo
 import Image from "next/image";
 import { Calendar } from "@/components/ui/calendar";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { ArrowRight, BookOpen, Briefcase, CalendarCheck, DollarSign, PlusCircle, UserCircle2, Users, Video, Clock, Loader2, Info } from "lucide-react"; // Added Clock, Loader2, Info
+import { ArrowRight, BookOpen, Briefcase, CalendarCheck, DollarSign, PlusCircle, UserCircle2, Users, Video, Clock, Loader2, Info } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getEvents } from "@/lib/firebase/firestore"; // Reuse getEvents or create a specific one
+import { getEvents } from "@/lib/firebase/firestore";
 import type { SchoolEvent } from "@/types/event";
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns"; // Added isSameDay
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-
 
 interface UserData {
   displayName: string;
   email: string;
   photoURL?: string | null;
-  // Add other student-specific data from Firestore if needed
 }
 
-// Sample data (replace with Firebase data)
 const feedbackActivityData = [
   { month: "Jun", good: 60, bad: 20 },
   { month: "Jul", good: 75, bad: 10 },
   { month: "Aug", good: 90, bad: 5 },
-  { month: "Sep", good: 50, bad: 30, label: "146 Feedback!" }, // Example with label
+  { month: "Sep", good: 50, bad: 30, label: "146 Feedback!" },
   { month: "Oct", good: 85, bad: 15 },
   { month: "Nov", good: 70, bad: 25 },
   { month: "Dec", good: 65, bad: 5 },
 ];
 
 const chartConfig = {
-  good: { label: "Good Feedback", color: "hsl(var(--chart-2))" }, // Green
-  bad: { label: "Bad Feedback", color: "hsl(var(--primary))" }, // Blue (or another contrasting color like red)
+  good: { label: "Good Feedback", color: "hsl(var(--chart-2))" },
+  bad: { label: "Bad Feedback", color: "hsl(var(--primary))" },
 };
 
-// Map event types to icons (example)
 const eventIconMap: { [key: string]: React.ElementType } = {
     "Multimedia Class": UserCircle2,
     "DKV Class": Briefcase,
     "Multimedia": Users,
-    "default": CalendarCheck, // Default icon
+    "default": CalendarCheck,
 };
 const eventIconBgMap: { [key: string]: string } = {
     "Multimedia Class": "bg-blue-100",
@@ -68,8 +64,8 @@ export default function UserDashboardPage() {
   const { toast } = useToast();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [calendarDate, setCalendarDate] = useState<Date | undefined>(new Date()); // Today's date
-  const [scheduleEvents, setScheduleEvents] = useState<SchoolEvent[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date()); // Renamed from calendarDate
+  const [allEvents, setAllEvents] = useState<SchoolEvent[]>([]); // Store all fetched events
   const [isLoadingSchedule, setIsLoadingSchedule] = useState(true);
 
 
@@ -82,25 +78,19 @@ export default function UserDashboardPage() {
       });
       setIsLoading(false);
     } else if (!authLoading) {
-      setIsLoading(false); 
+      setIsLoading(false);
     }
   }, [user, authLoading]);
-  
-  // Fetch student schedule events
+
+  // Fetch all relevant events for the student/public
   useEffect(() => {
     const fetchStudentEvents = async () => {
-      if (!user) return; // Don't fetch if no user
+      if (!user) return;
       setIsLoadingSchedule(true);
       try {
-        // Assuming getEvents(false) fetches public events or events relevant to students
-        // You might need a more specific query, e.g., filtering by an 'audience' field ('students')
-        const fetchedEvents = await getEvents(false); // Fetch public/student events
-        // Filter for today's or future events for the schedule view, limit to 3
-         const upcomingEvents = fetchedEvents
-             .filter(event => event.date >= new Date(new Date().setHours(0,0,0,0))) // Today or future
-             .sort((a, b) => a.date.getTime() - b.date.getTime()) // Sort by date
-             .slice(0, 3); // Limit to 3
-        setScheduleEvents(upcomingEvents);
+        // Fetch events accessible to students ('student' or 'public' audience)
+        const fetchedEvents = await getEvents(false); // false -> not admin only
+        setAllEvents(fetchedEvents);
       } catch (error) {
         console.error("Error fetching schedule events:", error);
         toast({ title: "Error", description: "Could not fetch schedule.", variant: "destructive" });
@@ -109,12 +99,20 @@ export default function UserDashboardPage() {
       }
     };
 
-    if (user) { // Only fetch if user is loaded
-        fetchStudentEvents();
+    if (user) {
+      fetchStudentEvents();
     } else {
-        setIsLoadingSchedule(false); // Stop loading if no user
+      setIsLoadingSchedule(false);
     }
   }, [user, toast]);
+
+  // Filter events based on the selected date using useMemo
+  const eventsForSelectedDate = useMemo(() => {
+    if (!selectedDate || !allEvents) return [];
+    return allEvents
+      .filter(event => isSameDay(event.date, selectedDate))
+      .sort((a, b) => new Date(`1970/01/01 ${a.time}`).getTime() - new Date(`1970/01/01 ${b.time}`).getTime()); // Sort by time
+  }, [selectedDate, allEvents]);
 
 
   if (authLoading || isLoading) {
@@ -141,73 +139,74 @@ export default function UserDashboardPage() {
       </div>
     );
   }
-  
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6"> {/* Added padding */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content Area (Left and Middle) */}
         <div className="lg:col-span-2 space-y-6">
           {/* Good Morning Card */}
           <Card className="bg-gradient-to-r from-green-500 to-green-400 text-white shadow-lg overflow-hidden">
-            <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between">
-              <div className="md:w-2/3">
-                <p className="text-sm">Good Morning,</p>
-                <h2 className="text-3xl font-bold mb-4">{userData.displayName}</h2>
-                <Button variant="secondary" className="bg-white text-green-500 hover:bg-gray-100 rounded-full" disabled> {/* Disabled as schedule page doesn't exist yet */}
-                  View All Schedule
-                </Button>
-              </div>
-              <div className="mt-4 md:mt-0 md:w-1/3 flex justify-center md:justify-end">
-                 <Image 
-                    src="https://picsum.photos/seed/student-dashboard/200/200" // Placeholder
-                    alt="Student illustration" 
-                    width={150} 
-                    height={150} 
-                    className="rounded-lg object-cover"
-                    data-ai-hint="student illustration"
-                />
-              </div>
-            </CardContent>
+             <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between">
+                <div className="md:w-2/3">
+                    <p className="text-sm">Good Morning,</p>
+                    <h2 className="text-3xl font-bold mb-4">{userData.displayName}</h2>
+                    <Button asChild variant="secondary" className="bg-white text-green-500 hover:bg-gray-100 rounded-full">
+                        <Link href="/dashboard/schedule">View All Schedule</Link>
+                    </Button>
+                </div>
+                <div className="mt-4 md:mt-0 md:w-1/3 flex justify-center md:justify-end">
+                    <Image
+                        src="https://picsum.photos/seed/student-dashboard/200/200"
+                        alt="Student illustration"
+                        width={150}
+                        height={150}
+                        className="rounded-lg object-cover"
+                        data-ai-hint="student illustration"
+                    />
+                </div>
+             </CardContent>
           </Card>
 
           {/* Quick Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="shadow-md">
               <CardContent className="p-4 flex flex-col items-center text-center">
                 <Avatar className="w-16 h-16 mb-3 ring-2 ring-offset-2 ring-pink-400">
                     <AvatarImage src="https://picsum.photos/seed/fav-student/100/100" data-ai-hint="student avatar" />
                     <AvatarFallback>AL</AvatarFallback>
                 </Avatar>
-                <p className="text-xs text-muted-foreground">Upcoming Event</p>
-                <p className="text-lg font-semibold text-foreground">Science Fair Prep</p>
+                <p className="text-xs text-muted-foreground">Next Event</p>
+                <p className="text-lg font-semibold text-foreground">
+                   {allEvents.filter(e => e.date >= new Date()).sort((a,b) => a.date.getTime() - b.date.getTime())[0]?.title || "No upcoming"}
+                </p>
               </CardContent>
             </Card>
             <Card className="shadow-md">
               <CardContent className="p-4 flex flex-col items-center text-center justify-center h-full">
                  <div className="p-3 rounded-full bg-blue-100 mb-2">
-                    <DollarSign className="h-6 w-6 text-blue-500" />
+                    <BookOpen className="h-6 w-6 text-blue-500" /> {/* Changed Icon */}
                  </div>
-                <p className="text-2xl font-bold text-foreground">2</p>
+                <p className="text-2xl font-bold text-foreground">2</p> {/* Placeholder */}
                 <p className="text-xs text-muted-foreground">Courses In Progress</p>
               </CardContent>
             </Card>
              <Card className="shadow-md">
               <CardContent className="p-4 flex flex-col items-center text-center justify-center h-full">
                  <div className="p-3 rounded-full bg-purple-100 mb-2">
-                    <BookOpen className="h-6 w-6 text-purple-500" />
+                    <CheckCircle className="h-6 w-6 text-purple-500" /> {/* Changed Icon */}
                  </div>
-                <p className="text-2xl font-bold text-foreground">5</p>
+                <p className="text-2xl font-bold text-foreground">5</p> {/* Placeholder */}
                 <p className="text-xs text-muted-foreground">Courses Completed</p>
               </CardContent>
             </Card>
           </div>
-            
+
           {/* Feedback Activity Chart */}
           <Card className="shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base font-semibold">Feedback Activity</CardTitle>
-              {/* Month selector can be added here */}
-              <Button variant="outline" size="sm" className="h-8 text-xs">Month <ArrowRight className="ml-1 h-3 w-3"/></Button>
+              <Button variant="outline" size="sm" className="h-8 text-xs" disabled>Month <ArrowRight className="ml-1 h-3 w-3"/></Button>
             </CardHeader>
             <CardContent className="h-[250px] p-2">
               <ChartContainer config={chartConfig} className="w-full h-full">
@@ -222,8 +221,10 @@ export default function UserDashboardPage() {
               </ChartContainer>
             </CardContent>
              <CardFooter className="pt-4 border-t">
-                <Button variant="default" className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 text-white rounded-lg py-3 px-6" disabled> {/* Disabled as courses page doesn't exist */}
-                    <PlusCircle className="mr-2 h-5 w-5" /> Explore Courses
+                <Button asChild variant="default" className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 text-white rounded-lg py-3 px-6">
+                     <Link href="/dashboard/courses">
+                        <PlusCircle className="mr-2 h-5 w-5" /> Explore Courses
+                    </Link>
                 </Button>
              </CardFooter>
           </Card>
@@ -235,8 +236,8 @@ export default function UserDashboardPage() {
             <CardContent className="p-2">
                 <Calendar
                     mode="single"
-                    selected={calendarDate}
-                    onSelect={setCalendarDate}
+                    selected={selectedDate}
+                    onSelect={setSelectedDate} // Update the selectedDate state
                     className="rounded-md p-0 [&_button]:h-8 [&_button]:w-8 [&_caption_label]:text-sm"
                     classNames={{
                         caption_label: "text-sm font-medium text-foreground",
@@ -251,23 +252,26 @@ export default function UserDashboardPage() {
 
           <Card className="shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-base font-semibold">Upcoming Schedule</CardTitle>
-              <Button variant="link" size="sm" className="text-primary hover:underline text-xs" disabled>View All</Button> {/* Disabled as schedule page doesn't exist */}
+              <CardTitle className="text-base font-semibold">
+                Schedule for {selectedDate ? format(selectedDate, "MMM do") : "Today"}
+              </CardTitle>
+              <Button asChild variant="link" size="sm" className="text-primary hover:underline text-xs">
+                  <Link href="/dashboard/schedule">View All</Link>
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 min-h-[150px]"> {/* Added min-height */}
               {isLoadingSchedule ? (
                 <div className="space-y-3 p-3">
                     <Skeleton className="h-16 w-full rounded-lg" />
                     <Skeleton className="h-16 w-full rounded-lg" />
-                    <Skeleton className="h-16 w-full rounded-lg" />
                 </div>
-              ) : scheduleEvents.length === 0 ? (
-                 <div className="p-6 text-center text-muted-foreground">
-                    <Info className="mx-auto h-8 w-8 mb-2 text-primary/50" />
-                    <p className="text-sm">No upcoming events found.</p>
+              ) : eventsForSelectedDate.length === 0 ? ( // Use filtered events
+                 <div className="p-6 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
+                    <Info className="h-8 w-8 mb-2 text-primary/50" />
+                    <p className="text-sm">No events scheduled for this day.</p>
                 </div>
               ) : (
-                scheduleEvents.map(event => {
+                eventsForSelectedDate.map(event => { // Use filtered events
                     const Icon = eventIconMap[event.description || 'default'] || eventIconMap.default;
                     const iconBg = eventIconBgMap[event.description || 'default'] || eventIconBgMap.default;
                     const iconColor = eventIconColorMap[event.description || 'default'] || eventIconColorMap.default;
