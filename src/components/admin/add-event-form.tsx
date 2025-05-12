@@ -12,6 +12,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription, // Added
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +25,7 @@ import type { SchoolEvent, SchoolEventFormData } from "@/types/event";
 import { addEvent, updateEvent } from "@/lib/firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Added Select
 
 const eventFormSchema = z.object({
   title: z.string().min(3, { message: "Title must be at least 3 characters." }),
@@ -39,6 +41,7 @@ const eventFormSchema = z.object({
     z.number().int().min(0).optional()
   ),
   color: z.string().optional(), // Could be a color picker later
+  audience: z.enum(['admin', 'student', 'public']).default('admin'), // Add audience field
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -62,6 +65,7 @@ export function AddEventForm({ eventToEdit, onFormSubmit, onCancel }: AddEventFo
         price: eventToEdit.price,
         totalTickets: eventToEdit.totalTickets,
         color: eventToEdit.color || "#007BFF", // Default color
+        audience: eventToEdit.audience || 'admin', // Load existing audience
       }
     : {
         title: "",
@@ -71,6 +75,7 @@ export function AddEventForm({ eventToEdit, onFormSubmit, onCancel }: AddEventFo
         price: 0,
         totalTickets: 100,
         color: "#007BFF",
+        audience: 'admin', // Default audience
       };
 
   const form = useForm<EventFormValues>({
@@ -84,12 +89,29 @@ export function AddEventForm({ eventToEdit, onFormSubmit, onCancel }: AddEventFo
       ...values,
       date: values.date, // Already a Date object from react-day-picker
       // ticketsLeft can be inferred from totalTickets if not directly set
-      ticketsLeft: values.totalTickets, 
+      // Let's explicitly set ticketsLeft only on creation if totalTickets is set.
+      ticketsLeft: eventToEdit ? eventToEdit.ticketsLeft : (values.totalTickets !== undefined ? values.totalTickets : undefined), 
     };
 
     try {
       if (eventToEdit?.id) {
-        await updateEvent(eventToEdit.id, eventData);
+        // When updating, only pass defined fields to avoid overwriting with defaults accidentally
+        const updateData: Partial<SchoolEventFormData> = Object.entries(eventData).reduce((acc, [key, value]) => {
+            if (value !== undefined) {
+                (acc as any)[key] = value;
+            }
+            return acc;
+        }, {});
+        // Ensure ticketsLeft isn't accidentally reset if only totalTickets changes
+         if (values.totalTickets !== undefined && eventToEdit.totalTickets !== values.totalTickets && values.ticketsLeft === undefined) {
+           // If totalTickets changed and ticketsLeft wasn't provided, recalculate or handle as needed.
+           // For now, we'll just update totalTickets. If ticketsLeft logic is needed, it goes here.
+           updateData.totalTickets = values.totalTickets;
+           // Maybe update ticketsLeft proportionally? Or set to new total? Setting to new total for simplicity now.
+           // updateData.ticketsLeft = values.totalTickets; 
+         }
+
+        await updateEvent(eventToEdit.id, updateData);
         toast({ title: "Event Updated", description: "The event details have been saved." });
       } else {
         await addEvent(eventData);
@@ -183,9 +205,9 @@ export function AddEventForm({ eventToEdit, onFormSubmit, onCancel }: AddEventFo
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <FormLabel>Description / Type</FormLabel>
               <FormControl>
-                <Textarea placeholder="Briefly describe the event..." {...field} />
+                <Textarea placeholder="Briefly describe the event or its type (e.g., Multimedia Class)" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -199,7 +221,8 @@ export function AddEventForm({ eventToEdit, onFormSubmit, onCancel }: AddEventFo
                     <FormItem>
                     <FormLabel>Price (USD, 0 for free)</FormLabel>
                     <FormControl>
-                        <Input type="number" placeholder="e.g., 5.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                        {/* Use step="0.01" for currency */}
+                        <Input type="number" placeholder="e.g., 5.00" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -219,19 +242,47 @@ export function AddEventForm({ eventToEdit, onFormSubmit, onCancel }: AddEventFo
                 )}
             />
         </div>
-         <FormField
-            control={form.control}
-            name="color"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Event Color</FormLabel>
-                <FormControl>
-                    <Input type="color" {...field} className="p-1 h-10 w-16 block" />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-        />
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <FormField
+                control={form.control}
+                name="audience"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Audience</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select who can see this event" />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                        <SelectItem value="admin">Admin Only</SelectItem>
+                        <SelectItem value="student">Students</SelectItem>
+                        <SelectItem value="public">Public</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <FormDescription>
+                        Choose who this event is visible to.
+                    </FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+            <FormField
+                control={form.control}
+                name="color"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Event Color</FormLabel>
+                    <FormControl>
+                        <Input type="color" {...field} className="p-1 h-10 w-16 block" />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
+         </div>
+
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
             Cancel

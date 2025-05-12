@@ -28,15 +28,16 @@ import {
   GraduationCap, // App Logo Icon
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth-hook";
+import { cn } from "@/lib/utils"; // Import cn
 
 const mainNavLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
-  { href: "/dashboard/courses", label: "Courses", icon: BookOpen, disabled: true },
-  { href: "/dashboard/schedule", label: "Schedule", icon: CalendarDays, disabled: true },
-  { href: "/dashboard/profile", label: "My Profile", icon: UserCircle, disabled: true }, // Link to /dashboard/settings later
-  { href: "/dashboard/chat", label: "Chat", icon: MessageSquare, disabled: true },
-  { href: "/dashboard/live-class", label: "Live Class", icon: Video, disabled: true },
-  { href: "/dashboard/transactions", label: "Transaction", icon: CreditCard, disabled: true },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutGrid, exact: true },
+  { href: "/dashboard/courses", label: "Courses", icon: BookOpen },
+  { href: "/dashboard/schedule", label: "Schedule", icon: CalendarDays },
+  { href: "/dashboard/profile", label: "My Profile", icon: UserCircle }, // This might link to settings or a dedicated profile page
+  { href: "/dashboard/chat", label: "Chat", icon: MessageSquare },
+  { href: "/dashboard/live-class", label: "Live Class", icon: Video },
+  { href: "/dashboard/transactions", label: "Transaction", icon: CreditCard },
 ];
 
 export function StudentSidebar() {
@@ -44,8 +45,12 @@ export function StudentSidebar() {
   const { setOpenMobile } = useSidebar();
   const { user, signOut, loading } = useAuth();
 
-  const activeLinkClasses = "bg-primary/10 text-primary"; // Custom active style based on image
-  const defaultLinkClasses = "hover:bg-secondary/50";
+  const activeLinkClasses = "bg-primary/10 text-primary font-semibold"; // Custom active style based on image
+  const defaultLinkClasses = "hover:bg-secondary/50 text-muted-foreground";
+  const disabledLinkClasses = "opacity-50 cursor-not-allowed"; // Style for disabled links
+
+  // Placeholder for which links are actually enabled
+  const enabledLinks = ["/dashboard", "/dashboard/settings", "/dashboard/profile"]; // Add more as they become functional
 
   return (
     <Sidebar variant="sidebar" side="left" collapsible="none" className="border-r bg-card shadow-sm"> {/* Changed bg-sidebar to bg-card for white */}
@@ -58,27 +63,40 @@ export function StudentSidebar() {
       
       <SidebarContent className="p-3 flex-grow">
         <SidebarMenu>
-          {mainNavLinks.map(link => (
-            <SidebarMenuItem key={link.href}>
-              <SidebarMenuButton
-                asChild
-                // isActive is not directly supported by SidebarMenuButton, we manage style via className
-                onClick={() => setOpenMobile(false)}
-                tooltip={{ children: link.label, side: "right", align: "center" }}
-                disabled={link.disabled}
-                className={`
-                  justify-start rounded-lg
-                  ${pathname === link.href || (link.href !== "/dashboard" && pathname.startsWith(link.href)) ? activeLinkClasses : defaultLinkClasses}
-                  ${link.disabled ? "cursor-not-allowed opacity-60" : ""}
-                `}
-              >
-                <Link href={link.disabled ? "#" : link.href}>
-                  <link.icon className={`mr-3 h-5 w-5 ${pathname === link.href ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <span className={pathname === link.href ? 'font-semibold' : ''}>{link.label}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+          {mainNavLinks.map(link => {
+             const isActive = link.exact ? pathname === link.href : pathname.startsWith(link.href);
+             const isEnabled = enabledLinks.includes(link.href); // Check if link should be enabled
+
+             return (
+                <SidebarMenuItem key={link.href}>
+                <SidebarMenuButton
+                    asChild={isEnabled} // Use asChild only if enabled to make it a Link
+                    // isActive is not directly supported, manage style via className
+                    onClick={() => isEnabled && setOpenMobile(false)}
+                    tooltip={{ children: link.label, side: "right", align: "center" }}
+                    disabled={!isEnabled} // Disable button if not enabled
+                    className={cn(
+                    "justify-start rounded-lg w-full",
+                    isActive ? activeLinkClasses : defaultLinkClasses,
+                    !isEnabled && disabledLinkClasses // Apply disabled styles
+                    )}
+                >
+                    {isEnabled ? (
+                    <Link href={link.href} className="flex items-center w-full">
+                        <link.icon className={`mr-3 h-5 w-5 ${isActive ? 'text-primary' : ''}`} />
+                        <span>{link.label}</span>
+                    </Link>
+                    ) : (
+                    // Render a div or span for disabled items so it's not clickable
+                    <div className="flex items-center w-full">
+                        <link.icon className={`mr-3 h-5 w-5`} />
+                        <span>{link.label}</span>
+                    </div>
+                    )}
+                </SidebarMenuButton>
+                </SidebarMenuItem>
+             );
+          })}
         </SidebarMenu>
       </SidebarContent>
       
@@ -89,14 +107,14 @@ export function StudentSidebar() {
                     asChild
                     onClick={() => setOpenMobile(false)}
                     tooltip={{ children: "Settings", side: "right", align: "center" }}
-                    className={`
-                        justify-start rounded-lg
-                        ${pathname === "/dashboard/settings" ? activeLinkClasses : defaultLinkClasses}
-                    `}
+                     className={cn(
+                        "justify-start rounded-lg",
+                        pathname.startsWith("/dashboard/settings") ? activeLinkClasses : defaultLinkClasses
+                     )}
                     >
                     <Link href="/dashboard/settings">
-                        <Settings className={`mr-3 h-5 w-5 ${pathname === '/dashboard/settings' ? 'text-primary' : 'text-muted-foreground'}`} />
-                        <span className={pathname === '/dashboard/settings' ? 'font-semibold' : ''}>Settings</span>
+                        <Settings className={`mr-3 h-5 w-5 ${pathname.startsWith('/dashboard/settings') ? 'text-primary' : ''}`} />
+                        <span>Settings</span>
                     </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>
@@ -104,7 +122,10 @@ export function StudentSidebar() {
                  <SidebarMenuItem>
                     <SidebarMenuButton
                         onClick={() => { signOut(); setOpenMobile(false); }}
-                        className={`justify-start rounded-lg mt-2 ${defaultLinkClasses} text-red-500 hover:text-red-600`}
+                        className={cn(
+                            "justify-start rounded-lg mt-2 text-red-500 hover:text-red-600",
+                            defaultLinkClasses // Use default hover from above
+                        )}
                          tooltip={{ children: "Logout", side: "right", align: "center" }}
                     >
                         <LogOut className="mr-3 h-5 w-5" />
@@ -117,3 +138,4 @@ export function StudentSidebar() {
     </Sidebar>
   );
 }
+

@@ -21,12 +21,11 @@ import { useAuth } from "@/hooks/use-auth-hook";
 import { useEffect, useState, useRef } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, Loader2, UserCircle } from "lucide-react";
-// Firebase storage for image uploads - more complex, so for now, we'll use URL input or simulate.
-// import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+// Firebase storage for image uploads is complex. We will use URL input for simplicity now.
 
 const profileSettingsSchema = z.object({
   displayName: z.string().min(2, "Display name must be at least 2 characters.").max(50, "Display name is too long."),
-  photoURL: z.string().url("Please enter a valid URL for your profile picture.").optional().or(z.literal('')),
+  photoURL: z.string().url("Please enter a valid image URL (e.g., https://...).").optional().or(z.literal('')),
   // email: z.string().email().optional(), // Email is usually not changed by user directly here
 });
 
@@ -36,7 +35,7 @@ export default function StudentSettingsPage() {
   const { toast } = useToast();
   const { user, updateUserProfile, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null); // Keep for potential future file upload impl
   const [currentPhotoURL, setCurrentPhotoURL] = useState(user?.photoURL || "");
 
 
@@ -48,6 +47,7 @@ export default function StudentSettingsPage() {
     },
   });
 
+  // Update form when user data loads or changes
   useEffect(() => {
     if (user) {
       form.reset({
@@ -58,29 +58,21 @@ export default function StudentSettingsPage() {
     }
   }, [user, form]);
 
-  // Simulated file upload - in real app, upload to Firebase Storage and get URL
+  // Update preview immediately when URL field changes
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'photoURL') {
+        setCurrentPhotoURL(value.photoURL || "");
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  // Simulate file upload - kept for reference, but direct URL input is used now
   const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-        // Simulate upload and get URL
-        toast({ title: "Image Selected", description: "Image preview updated. Save to apply."});
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const dataUrl = reader.result as string;
-            form.setValue("photoURL", dataUrl); // For preview
-            setCurrentPhotoURL(dataUrl); // Update preview immediately
-            // In a real app:
-            // const storage = getStorage();
-            // const storageRef = ref(storage, `profilePictures/${user?.uid}/${file.name}`);
-            // uploadBytes(storageRef, file).then(snapshot => {
-            //   getDownloadURL(snapshot.ref).then(url => {
-            //     form.setValue("photoURL", url);
-            //     setCurrentPhotoURL(url); 
-            //   });
-            // });
-        };
-        reader.readAsDataURL(file);
-    }
+    // This function is currently NOT used because we switched to URL input.
+    // If implementing file upload later, this would handle the file selection.
+    toast({ title: "File Upload Disabled", description: "Please paste an image URL instead.", variant: "destructive"});
   };
 
   async function onSubmit(values: ProfileSettingsFormValues) {
@@ -90,10 +82,7 @@ export default function StudentSettingsPage() {
     }
     setIsSubmitting(true);
     
-    // If photoURL is a data URL from preview, it means new image selected.
-    // In a real app, this data URL would be uploaded to storage first, then the storage URL used.
-    // For this simulation, we'll assume values.photoURL is the final URL (or a data URL to be treated as one by updateUserProfile if it could handle it)
-    
+    // Use the photoURL directly from the form input
     const { success, error } = await updateUserProfile(values.displayName, values.photoURL || undefined);
     setIsSubmitting(false);
 
@@ -129,30 +118,16 @@ export default function StudentSettingsPage() {
                     {user.displayName ? user.displayName[0].toUpperCase() : <UserCircle className="h-16 w-16" />}
                   </AvatarFallback>
                 </Avatar>
-                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-                    <Camera className="mr-2 h-4 w-4" /> Change Photo (Simulated)
-                </Button>
-                <Input 
+                 {/* Hidden file input for potential future use */}
+                 <Input 
                     type="file" 
                     ref={fileInputRef} 
                     className="hidden" 
                     accept="image/*" 
                     onChange={handleImageChange} 
                 />
-                 <FormField
-                    control={form.control}
-                    name="photoURL"
-                    render={({ field }) => (
-                        <FormItem className="w-full hidden"> {/* Hidden, value set by simulated upload for preview */}
-                        <FormLabel>Profile Picture URL (Direct)</FormLabel>
-                        <FormControl><Input placeholder="https://example.com/image.png" {...field} /></FormControl>
-                        <FormDescription>Or, enter a URL for your profile picture.</FormDescription>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
               </div>
-
+               
               <FormField
                 control={form.control}
                 name="displayName"
@@ -165,6 +140,19 @@ export default function StudentSettingsPage() {
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="photoURL"
+                render={({ field }) => (
+                    <FormItem className="w-full">
+                    <FormLabel>Profile Picture URL</FormLabel>
+                    <FormControl><Input placeholder="https://example.com/your-image.png" {...field} /></FormControl>
+                    <FormDescription>Enter a direct URL to your profile picture.</FormDescription>
+                    <FormMessage />
+                    </FormItem>
+                )}
+               />
               
               <FormItem>
                 <FormLabel>Email Address</FormLabel>

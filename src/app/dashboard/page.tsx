@@ -9,9 +9,15 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Calendar } from "@/components/ui/calendar";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts';
-import { ArrowRight, BookOpen, Briefcase, CalendarCheck, DollarSign, PlusCircle, Search, Smile, UserCircle2, Users, Video } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { ArrowRight, BookOpen, Briefcase, CalendarCheck, DollarSign, PlusCircle, UserCircle2, Users, Video, Clock, Loader2, Info } from "lucide-react"; // Added Clock, Loader2, Info
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getEvents } from "@/lib/firebase/firestore"; // Reuse getEvents or create a specific one
+import type { SchoolEvent } from "@/types/event";
+import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
+
 
 interface UserData {
   displayName: string;
@@ -36,23 +42,39 @@ const chartConfig = {
   bad: { label: "Bad Feedback", color: "hsl(var(--primary))" }, // Blue (or another contrasting color like red)
 };
 
-const scheduleItems = [
-    { title: "How To Use Pen Tool", time: "08:20 - 09:00", type: "Multimedia Class", icon: UserCircle2, iconBg: "bg-blue-100", iconColor: "text-blue-500" },
-    { title: "Create Short CBR", time: "10:00 - 12:00", type: "DKV Class", icon: Briefcase, iconBg: "bg-green-100", iconColor: "text-green-500" },
-    { title: "Masking Technique", time: "13:00 - 14:30", type: "Multimedia", icon: Users, iconBg: "bg-yellow-100", iconColor: "text-yellow-500" },
-];
+// Map event types to icons (example)
+const eventIconMap: { [key: string]: React.ElementType } = {
+    "Multimedia Class": UserCircle2,
+    "DKV Class": Briefcase,
+    "Multimedia": Users,
+    "default": CalendarCheck, // Default icon
+};
+const eventIconBgMap: { [key: string]: string } = {
+    "Multimedia Class": "bg-blue-100",
+    "DKV Class": "bg-green-100",
+    "Multimedia": "bg-yellow-100",
+    "default": "bg-gray-100",
+};
+const eventIconColorMap: { [key: string]: string } = {
+    "Multimedia Class": "text-blue-500",
+    "DKV Class": "text-green-500",
+    "Multimedia": "text-yellow-500",
+    "default": "text-gray-500",
+};
 
 
 export default function UserDashboardPage() {
   const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [calendarDate, setCalendarDate] = useState<Date | undefined>(new Date(2022,0,1)); // January 2022 from image
+  const [calendarDate, setCalendarDate] = useState<Date | undefined>(new Date()); // Today's date
+  const [scheduleEvents, setScheduleEvents] = useState<SchoolEvent[]>([]);
+  const [isLoadingSchedule, setIsLoadingSchedule] = useState(true);
 
 
   useEffect(() => {
     if (user && !authLoading) {
-      // Simulate fetching user data (already done in AuthProvider, user object has basic info)
       setUserData({
         displayName: user.displayName || "Student",
         email: user.email || "No email",
@@ -63,11 +85,50 @@ export default function UserDashboardPage() {
       setIsLoading(false); 
     }
   }, [user, authLoading]);
+  
+  // Fetch student schedule events
+  useEffect(() => {
+    const fetchStudentEvents = async () => {
+      if (!user) return; // Don't fetch if no user
+      setIsLoadingSchedule(true);
+      try {
+        // Assuming getEvents(false) fetches public events or events relevant to students
+        // You might need a more specific query, e.g., filtering by an 'audience' field ('students')
+        const fetchedEvents = await getEvents(false); // Fetch public/student events
+        // Filter for today's or future events for the schedule view, limit to 3
+         const upcomingEvents = fetchedEvents
+             .filter(event => event.date >= new Date(new Date().setHours(0,0,0,0))) // Today or future
+             .sort((a, b) => a.date.getTime() - b.date.getTime()) // Sort by date
+             .slice(0, 3); // Limit to 3
+        setScheduleEvents(upcomingEvents);
+      } catch (error) {
+        console.error("Error fetching schedule events:", error);
+        toast({ title: "Error", description: "Could not fetch schedule.", variant: "destructive" });
+      } finally {
+        setIsLoadingSchedule(false);
+      }
+    };
+
+    if (user) { // Only fetch if user is loaded
+        fetchStudentEvents();
+    } else {
+        setIsLoadingSchedule(false); // Stop loading if no user
+    }
+  }, [user, toast]);
+
 
   if (authLoading || isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p>Loading dashboard...</p> {/* Replace with a proper loader skeleton */}
+         <div className="space-y-4 p-8 w-full max-w-4xl">
+            <Skeleton className="h-32 w-full" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                 <Skeleton className="h-32 w-full" />
+                 <Skeleton className="h-32 w-full" />
+                 <Skeleton className="h-32 w-full" />
+            </div>
+             <Skeleton className="h-64 w-full" />
+        </div>
       </div>
     );
   }
@@ -92,7 +153,7 @@ export default function UserDashboardPage() {
               <div className="md:w-2/3">
                 <p className="text-sm">Good Morning,</p>
                 <h2 className="text-3xl font-bold mb-4">{userData.displayName}</h2>
-                <Button variant="secondary" className="bg-white text-green-500 hover:bg-gray-100 rounded-full">
+                <Button variant="secondary" className="bg-white text-green-500 hover:bg-gray-100 rounded-full" disabled> {/* Disabled as schedule page doesn't exist yet */}
                   View All Schedule
                 </Button>
               </div>
@@ -161,7 +222,7 @@ export default function UserDashboardPage() {
               </ChartContainer>
             </CardContent>
              <CardFooter className="pt-4 border-t">
-                <Button variant="default" className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 text-white rounded-lg py-3 px-6">
+                <Button variant="default" className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 text-white rounded-lg py-3 px-6" disabled> {/* Disabled as courses page doesn't exist */}
                     <PlusCircle className="mr-2 h-5 w-5" /> Explore Courses
                 </Button>
              </CardFooter>
@@ -190,21 +251,41 @@ export default function UserDashboardPage() {
 
           <Card className="shadow-md">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-base font-semibold">Schedule</CardTitle>
-              <Button variant="link" size="sm" className="text-primary hover:underline text-xs">View All</Button>
+              <CardTitle className="text-base font-semibold">Upcoming Schedule</CardTitle>
+              <Button variant="link" size="sm" className="text-primary hover:underline text-xs" disabled>View All</Button> {/* Disabled as schedule page doesn't exist */}
             </CardHeader>
             <CardContent className="space-y-3">
-              {scheduleItems.map(item => (
-                <div key={item.title} className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg">
-                    <div className={`p-2 rounded-full ${item.iconBg}`}>
-                        <item.icon className={`h-5 w-5 ${item.iconColor}`} />
-                    </div>
-                    <div>
-                        <p className="text-sm font-medium text-foreground">{item.title}</p>
-                        <p className="text-xs text-muted-foreground">{item.time} - {item.type}</p>
-                    </div>
+              {isLoadingSchedule ? (
+                <div className="space-y-3 p-3">
+                    <Skeleton className="h-16 w-full rounded-lg" />
+                    <Skeleton className="h-16 w-full rounded-lg" />
+                    <Skeleton className="h-16 w-full rounded-lg" />
                 </div>
-              ))}
+              ) : scheduleEvents.length === 0 ? (
+                 <div className="p-6 text-center text-muted-foreground">
+                    <Info className="mx-auto h-8 w-8 mb-2 text-primary/50" />
+                    <p className="text-sm">No upcoming events found.</p>
+                </div>
+              ) : (
+                scheduleEvents.map(event => {
+                    const Icon = eventIconMap[event.description || 'default'] || eventIconMap.default;
+                    const iconBg = eventIconBgMap[event.description || 'default'] || eventIconBgMap.default;
+                    const iconColor = eventIconColorMap[event.description || 'default'] || eventIconColorMap.default;
+                    return (
+                        <div key={event.id} className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg">
+                            <div className={`p-2 rounded-full ${iconBg}`}>
+                                <Icon className={`h-5 w-5 ${iconColor}`} />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-foreground">{event.title}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    <Clock className="inline h-3 w-3 mr-1" /> {format(event.date, "MMM d")} @ {event.time} - {event.description || "Event"}
+                                </p>
+                            </div>
+                        </div>
+                    );
+                })
+              )}
             </CardContent>
           </Card>
         </div>
