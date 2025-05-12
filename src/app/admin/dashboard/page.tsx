@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 import { 
-    ChevronLeft, ChevronRight, Search, Bell, MessageSquare, UserCircle, Users, MoreVertical, Calendar as CalendarIcon 
+    ChevronLeft, ChevronRight, Search, Bell, MessageSquare, UserCircle, Users, MoreVertical, Calendar as CalendarIcon, ChevronDown
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { format, addMonths, subMonths, getDaysInMonth, startOfMonth, getDay, eachDayOfInterval, endOfMonth } from "date-fns";
@@ -225,7 +225,7 @@ export default function AdminDashboardPage() {
           <CardContent className="p-0">
             <div className="max-h-[calc(100vh-20rem)] overflow-y-auto event-list-scrollbar"> {/* Custom scrollbar class */}
             {events.filter(e => e.id.startsWith("evt_")).map((event) => (
-              <div key={event.id} className="p-4 border-b last:border-b-0 hover:bg-muted/30">
+              <div key={event.id} className="p-4 border-b last:border-b-0 hover:bg-muted/30 relative">
                 <div className="flex justify-between items-start mb-1">
                   <h4 className="font-semibold text-sm text-foreground">{event.title}</h4>
                   {event.price !== undefined && <span className="text-sm font-bold text-primary">${event.price.toFixed(2)}</span>}
@@ -260,4 +260,5 @@ export default function AdminDashboardPage() {
 const Clock = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
 );
+
 
