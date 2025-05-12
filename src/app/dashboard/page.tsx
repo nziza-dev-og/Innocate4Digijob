@@ -10,7 +10,7 @@ import Image from "next/image";
 import { Calendar } from "@/components/ui/calendar";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { ArrowRight, BookOpen, Briefcase, CalendarCheck, DollarSign, PlusCircle, UserCircle2, Users, Video, Clock, Loader2, Info } from "lucide-react";
+import { ArrowRight, BookOpen, Briefcase, CalendarCheck, DollarSign, PlusCircle, UserCircle2, Users, Video, Clock, Loader2, Info, CheckCircle } from "lucide-react"; // Added CheckCircle
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getEvents } from "@/lib/firebase/firestore";
 import type { SchoolEvent } from "@/types/event";
