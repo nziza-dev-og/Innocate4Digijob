@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { 
-    ChevronLeft, ChevronRight, Search, Bell, MessageSquare, UserCircle, Users, MoreVertical, Calendar as CalendarIcon, ChevronDown, PlusCircle, Trash2, Edit3, Info
+    ChevronLeft, ChevronRight, Search, Bell, MessageSquare, UserCircle, Users, MoreVertical, Calendar as CalendarIcon, ChevronDown, PlusCircle, Trash2, Edit3, Info, Clock
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { format, addMonths, subMonths, getDaysInMonth, startOfMonth, getDay, eachDayOfInterval, endOfMonth, isSameDay, isSameMonth } from "date-fns";
@@ -28,7 +28,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
+  // AlertDialogTrigger, // No longer needed here directly for the trigger button if it's manually controlled
 } from "@/components/ui/alert-dialog";
 
 export default function AdminDashboardPage() {
@@ -269,11 +269,10 @@ export default function AdminDashboardPage() {
                     <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-500 hover:text-blue-700" onClick={() => openEditEventDialog(event)}>
                         <Edit3 className="h-4 w-4"/> <span className="sr-only">Edit</span>
                     </Button>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700" onClick={() => setEventToDelete(event)}>
-                            <Trash2 className="h-4 w-4"/> <span className="sr-only">Delete</span>
-                        </Button>
-                    </AlertDialogTrigger>
+                    {/* AlertDialogTrigger removed, Button directly sets state to open AlertDialog */}
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700" onClick={() => setEventToDelete(event)}>
+                        <Trash2 className="h-4 w-4"/> <span className="sr-only">Delete</span>
+                    </Button>
                 </div>
               </div>
             ))}
@@ -305,7 +304,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-const Clock = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-);
