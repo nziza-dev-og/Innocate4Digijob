@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { User as FirebaseUser, AuthError } from "firebase/auth";
@@ -42,22 +41,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
+    if (!auth) {
+      console.error("Firebase Auth is not initialized. Auth state listener will not run.");
+      setUser(null);
+      setIsUserAdmin(false);
+      setLoading(false);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true); 
       if (firebaseUser) {
+        if (!db) { // Check if db is initialized before trying to use it
+          console.error("Firestore is not initialized. Cannot fetch user role.");
+          setUser({ ...firebaseUser, role: "user" } as AppUser); // Default to user if db is not available
+          setIsUserAdmin(false);
+          setLoading(false);
+          return;
+        }
         const userDocRef = doc(db, "users", firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
-        let userRole = "user"; // default role
+        let userRole = "user"; 
         if (userDocSnap.exists()) {
           userRole = userDocSnap.data().role || "user";
-          if (userRole === "admin") {
-            setIsUserAdmin(true);
-          } else {
-            setIsUserAdmin(false);
-          }
+          setIsUserAdmin(userRole === "admin");
         } else {
-          // Handle case where user exists in Auth but not Firestore (e.g., incomplete signup)
-          // You might want to create the Firestore doc here or log an error
           setIsUserAdmin(false); 
         }
         setUser({ ...firebaseUser, role: userRole } as AppUser);
@@ -71,18 +78,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string, fullName?: string, role: string = "user"): Promise<{ user: FirebaseUser | null; error: AuthError | null }> => {
+    if (!auth || !db) {
+      const err = { name: "Firebase Error", message: "Firebase not initialized.", code: "firebase-not-initialized" } as AuthError;
+      setError(err);
+      setLoading(false);
+      return { user: null, error: err };
+    }
     setLoading(true);
     setError(null);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
       
-      // Update Firebase Auth profile
       if (fullName) {
         await updateProfile(firebaseUser, { displayName: fullName });
       }
 
-      // Create user document in Firestore
       await setDoc(doc(db, "users", firebaseUser.uid), {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
@@ -92,7 +103,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         createdAt: new Date().toISOString(),
       });
       
-      // onAuthStateChanged will update the user state and isUserAdmin
       setLoading(false);
       return { user: firebaseUser, error: null };
     } catch (e) {
@@ -103,6 +113,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string): Promise<{ user: FirebaseUser | null; isAdmin: boolean; error: AuthError | null }> => {
+    if (!auth || !db) {
+      const err = { name: "Firebase Error", message: "Firebase not initialized.", code: "firebase-not-initialized" } as AuthError;
+      setError(err);
+      setLoading(false);
+      return { user: null, isAdmin: false, error: err };
+    }
     setLoading(true);
     setError(null);
     try {
@@ -116,11 +132,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
           userRole = userDocSnap.data().role || "user";
-          if (userRole === "admin") {
-            isAdmin = true;
-          }
+          isAdmin = userRole === "admin";
         }
-        // Update context state. onAuthStateChanged will also run.
         setUser({ ...firebaseUser, role: userRole } as AppUser); 
         setIsUserAdmin(isAdmin);
       }
@@ -134,13 +147,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    if (!auth) {
+      const err = { name: "Firebase Error", message: "Firebase Auth not initialized.", code: "firebase-not-initialized" } as AuthError;
+      setError(err);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       await firebaseSignOut(auth);
       setUser(null);
       setIsUserAdmin(false);
-      router.push("/login"); // Ensure redirection after sign out
+      router.push("/login"); 
     } catch (e) {
       setError(e as AuthError);
     } finally {
@@ -149,29 +168,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updateUserProfile = async (displayName?: string, photoURL?: string): Promise<{ success: boolean; error: Error | null }> => {
+    if (!auth || !db) {
+      setLoading(false);
+      return { success: false, error: new Error("Firebase not initialized.") };
+    }
     if (!auth.currentUser) {
+      setLoading(false);
       return { success: false, error: new Error("No user logged in") };
     }
     setLoading(true);
     try {
       const updates: { displayName?: string; photoURL?: string } = {};
       if (displayName) updates.displayName = displayName;
-      if (photoURL) updates.photoURL = photoURL;
+      // Allow empty string for photoURL to remove it, but undefined means no change
+      if (photoURL !== undefined) updates.photoURL = photoURL;
 
-      // Update Firebase Auth profile
+
       if (Object.keys(updates).length > 0) {
         await updateProfile(auth.currentUser, updates);
       }
 
-      // Update Firestore document
       const userDocRef = doc(db, "users", auth.currentUser.uid);
-      await updateDoc(userDocRef, updates);
+      // Ensure photoURL is set to null in Firestore if it's an empty string
+      const firestoreUpdates = {...updates};
+      if (firestoreUpdates.photoURL === "") {
+          firestoreUpdates.photoURL = null;
+      }
+      await updateDoc(userDocRef, firestoreUpdates);
 
-      // Manually update local user state to reflect changes immediately
       setUser(prevUser => prevUser ? ({
         ...prevUser,
-        ...(displayName && { displayName }),
-        ...(photoURL && { photoURL }),
+        displayName: displayName !== undefined ? displayName : prevUser.displayName,
+        photoURL: photoURL !== undefined ? photoURL : prevUser.photoURL,
       }) as AppUser : null);
 
       setLoading(false);
@@ -195,3 +223,4 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+

@@ -1,57 +1,75 @@
 
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApps, getApp, type FirebaseOptions } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// Log missing variables during build/runtime
-const requiredEnvVars = [
-  'NEXT_PUBLIC_FIREBASE_API_KEY',
-  'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
-  'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
-  'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
-  'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
-  'NEXT_PUBLIC_FIREBASE_APP_ID',
+// Define the required environment variable keys
+const requiredEnvVars: (keyof FirebaseOptions | 'NEXT_PUBLIC_ADMIN_SECRET_CODE')[] = [
+  'apiKey',
+  'authDomain',
+  'projectId',
+  'storageBucket',
+  'messagingSenderId',
+  'appId',
 ];
 
-const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+// Construct the full env var names expected in process.env
+const fullEnvVarNames = requiredEnvVars.map(key => `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`);
+// Add any other non-Firebase config vars needed
+fullEnvVarNames.push('NEXT_PUBLIC_ADMIN_SECRET_CODE');
+
+// Check for missing variables
+const missingEnvVars = fullEnvVarNames.filter(varName => !process.env[varName]);
 
 if (missingEnvVars.length > 0) {
-  console.error(`Missing Firebase environment variables: ${missingEnvVars.join(', ')}`);
-  // Optionally throw an error during server-side build if critical vars are missing
-  // if (typeof window === 'undefined') { // Only throw during server-side execution/build
-  //   throw new Error(`Missing Firebase environment variables: ${missingEnvVars.join(', ')}`);
-  // }
+  const errorMessage = `Error: Missing critical environment variables: ${missingEnvVars.join(', ')}. Please ensure they are set in your .env file or deployment environment settings.`;
+  console.error(errorMessage);
+  // Throwing an error during build if critical Firebase vars are missing
+  if (requiredEnvVars.some(key => `NEXT_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}` in missingEnvVars.filter(v => v.startsWith("NEXT_PUBLIC_FIREBASE_")))) {
+      // Only throw if essential Firebase config is missing
+      if (typeof window === 'undefined') { // Throw only during build/server-side
+          throw new Error(errorMessage);
+      } else {
+          // Log error prominently in the browser console
+          console.error(errorMessage);
+      }
+  }
 }
 
-
-const firebaseConfig = {
+const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, // Ensure this matches .env
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, // Ensure this matches .env (e.g., curblink.appspot.com)
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Validate config values (basic check)
-if (!firebaseConfig.apiKey) {
-  console.error("Firebase API Key is missing in environment variables.");
-  // Consider throwing an error depending on the environment
-}
-
 // Initialize Firebase
-// Check if Firebase app has already been initialized to prevent errors
 let app;
 try {
+  // Check if all necessary Firebase config keys have values
+  const hasAllConfigKeys = requiredEnvVars
+        .filter(key => key !== 'NEXT_PUBLIC_ADMIN_SECRET_CODE') // Exclude non-Firebase keys for this check
+        .every(key => firebaseConfig[key as keyof FirebaseOptions]);
+
+  if (!hasAllConfigKeys) {
+      // Don't attempt initialization if core config is missing
+      throw new Error("Firebase configuration is incomplete. Cannot initialize Firebase.");
+  }
+  
   app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 } catch (error) {
-  console.error("Firebase initialization failed:", error);
-  // Handle the error appropriately, maybe rethrow or set app to null
-  // Depending on how the rest of the app handles a missing Firebase connection
-  throw new Error("Could not initialize Firebase. Check configuration and environment variables.");
+  console.error("Firebase initialization failed:", error instanceof Error ? error.message : error);
+  // Avoid throwing here directly if client-side, let the app handle the missing connection gracefully.
+  // But the build error indicates this needs fixing via environment variables.
+  // The throw inside the missing variable check above should handle build failures.
+  app = null; // Indicate that initialization failed
 }
 
-const auth = getAuth(app);
-const db = getFirestore(app);
+// Conditionally initialize Auth and Firestore only if app was successfully initialized
+const auth = app ? getAuth(app) : null;
+const db = app ? getFirestore(app) : null;
 
+// Ensure auth and db are properly typed even when null
 export { app, auth, db };

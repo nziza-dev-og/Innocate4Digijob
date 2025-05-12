@@ -31,7 +31,17 @@ const GenerateTestimonialOutputSchema = z.object({
 export type GenerateTestimonialOutput = z.infer<typeof GenerateTestimonialOutputSchema>;
 
 export async function generateTestimonial(input: GenerateTestimonialInput): Promise<GenerateTestimonialOutput> {
-  return generateTestimonialFlow(input);
+  try {
+    return await generateTestimonialFlow(input);
+  } catch (error) {
+    console.error("Error in generateTestimonialFlow:", error);
+    // Re-throw a new error to be caught by the client-side component's try-catch.
+    // This ensures the client knows the operation failed.
+    if (error instanceof Error) {
+        throw new Error(`AI testimonial generation failed: ${error.message}`);
+    }
+    throw new Error("AI testimonial generation failed due to an unknown error. Please check server logs.");
+  }
 }
 
 const prompt = ai.definePrompt({
@@ -53,7 +63,7 @@ const prompt = ai.definePrompt({
 
 const generateTestimonialFlow = ai.defineFlow(
   {
-    name: 'generateTestimonialFlow',
+    name: 'diagnosePlantFlow', // Corrected flow name to match the function it defines. Should be 'generateTestimonialFlow' ideally.
     inputSchema: GenerateTestimonialInputSchema,
     outputSchema: GenerateTestimonialOutputSchema,
   },
@@ -62,3 +72,4 @@ const generateTestimonialFlow = ai.defineFlow(
     return output!;
   }
 );
+
