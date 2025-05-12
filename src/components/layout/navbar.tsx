@@ -66,13 +66,17 @@ export function Navbar() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" className="rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/40/40`} alt={user.displayName || "User"} data-ai-hint="user avatar" />
-                    <AvatarFallback>{user.displayName?.[0].toUpperCase() || user.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
+                    <AvatarImage 
+                      src={user?.photoURL || `https://picsum.photos/seed/${user?.uid || 'defaultUser'}/40/40`} 
+                      alt={user?.displayName || "User"} 
+                      data-ai-hint="user avatar" 
+                    />
+                    <AvatarFallback>{user?.displayName?.[0].toUpperCase() || user?.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{user.displayName || user.email}</DropdownMenuLabel>
+                <DropdownMenuLabel>{user?.displayName || user?.email}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {isUserAdmin && (
                   <DropdownMenuItem asChild>

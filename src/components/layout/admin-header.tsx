@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -71,20 +72,24 @@ export function AdminHeader() {
                 className="relative h-10 w-10 rounded-full p-0"
               >
                 <Avatar className="h-9 w-9">
-                  <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/40/40`} alt={user.displayName || "User"} data-ai-hint="user avatar"/>
-                  <AvatarFallback>{user.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
+                  <AvatarImage 
+                    src={user?.photoURL || `https://picsum.photos/seed/${user?.uid || 'defaultUser'}/40/40`} 
+                    alt={user?.displayName || "User"} 
+                    data-ai-hint="user avatar"
+                  />
+                  <AvatarFallback>{user?.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{user.displayName || user.email}</p>
+                  <p className="text-sm font-medium leading-none">{user?.displayName || user?.email}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {user.email}
+                    {user?.email}
                   </p>
                    <p className="text-xs leading-none text-muted-foreground capitalize pt-1">
-                    Role: {user.role || 'Admin'}
+                    Role: {user?.role || 'Admin'}
                   </p>
                 </div>
               </DropdownMenuLabel>
@@ -97,7 +102,7 @@ export function AdminHeader() {
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                  {/* Link to /dashboard/settings for student, /admin/settings for admin */}
-                <Link href={user.role === 'admin' ? "/admin/settings" : "/dashboard/settings"}>
+                <Link href={user?.role === 'admin' ? "/admin/settings" : "/dashboard/settings"}>
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </Link>
