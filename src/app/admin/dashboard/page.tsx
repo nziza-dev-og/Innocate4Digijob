@@ -1,308 +1,263 @@
 
-"use client"; // Required for charts and interactive elements
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar"; // ShadCN calendar
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Pie, PieChart, Cell, Legend, Tooltip as RechartsTooltip, ResponsiveContainer, Line, LineChart, RadialBar, RadialBarChart } from 'recharts';
+import { Calendar }  from "@/components/ui/calendar";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-import { GraduationCap, Briefcase, Users, BadgeDollarSign, MoreHorizontal, Settings, ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
-import Link from "next/link";
+import { 
+    ChevronLeft, ChevronRight, Search, Bell, MessageSquare, UserCircle, Users, MoreVertical, Calendar as CalendarIcon 
+} from "lucide-react";
 import { useState, useEffect } from "react";
+import { format, addMonths, subMonths, getDaysInMonth, startOfMonth, getDay, eachDayOfInterval, endOfMonth } from "date-fns";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 
-// Sample data (replace with Firebase data)
-const totalEarningsData = [
-  { month: "Jan", earnings: 40000, expenses: 24000 },
-  { month: "Feb", earnings: 30000, expenses: 13980 },
-  { month: "Mar", earnings: 20000, expenses: 9800 },
-  { month: "Apr", earnings: 27800, expenses: 39080 },
-  { month: "May", earnings: 18900, expenses: 48000 },
-  { month: "Jun", earnings: 23900, expenses: 38000 },
-  { month: "Jul", earnings: 50000, expenses: 43000 },
-  { month: "Aug", earnings: 45000, expenses: 39000 },
-  { month: "Sep", earnings: 32000, expenses: 20000 },
-  { month: "Oct", earnings: 25000, expenses: 28000 },
-  { month: "Nov", earnings: 15000, expenses: 10000 },
-  { month: "Dec", earnings: 38000, expenses: 32000 },
+// Sample event data (replace with Firebase data)
+interface SchoolEvent {
+  id: string;
+  date: Date;
+  title: string;
+  time: string;
+  price?: number;
+  ticketsLeft?: number;
+  totalTickets?: number;
+  attendees?: string[]; // Avatar URLs
+  color?: string; // For dots in calendar
+}
+
+const sampleEvents: SchoolEvent[] = [
+  { id: "1", date: new Date(2021, 11, 6), title: "Movie Night", time: "07:00 - 10:00 PM", price: 5.0, ticketsLeft: 23, totalTickets: 100, attendees: ["https://picsum.photos/20/20?random=1", "https://picsum.photos/20/20?random=2", "https://picsum.photos/20/20?random=3"], color: "bg-blue-500" },
+  { id: "2", date: new Date(2021, 11, 10), title: "Franklin, 2+", time: "All Day", price: 600.00, color: "bg-green-500" },
+  { id: "3", date: new Date(2021, 11, 15), title: "Art Exhibition", time: "10:00 AM - 04:00 PM", attendees: ["https://picsum.photos/20/20?random=4", "https://picsum.photos/20/20?random=5"], color: "bg-yellow-500"},
+  { id: "4", date: new Date(2021, 11, 18), title: "Franklin, 2+", time: "All Day", price: 600.00, color: "bg-green-500" },
+  { id: "5", date: new Date(2021, 11, 28), title: "Hawkins", time: "Full Day", price: 600.00, color: "bg-red-500"},
+  { id: "6", date: new Date(2021, 11, 2), title: "Staff Meeting", time: "02:00 PM", color: "bg-indigo-500"},
+  { id: "7", date: new Date(2021, 11, 23), title: "Parent Conference", time: "09:00 AM - 05:00 PM", color: "bg-purple-500"},
+  { id: "evt_movie_night", date: new Date(2020, 10, 20), title: "Movie Night", time: "07:00 - 10:00 PM", price: 5.0, ticketsLeft: 23, totalTickets: 100 },
+  { id: "evt_color_run", date: new Date(2020, 10, 6), title: "Color Run", time: "07:00 - 10:00 PM", price: 0, ticketsLeft: 17, totalTickets: 50 },
+  { id: "evt_hostage_situation", date: new Date(2020, 10, 20), title: "Hostage Situation", time: "07:00 - 10:00 PM", price: 5.0, ticketsLeft: 4, totalTickets: 30 },
+  { id: "evt_yard_sale", date: new Date(2020, 10, 20), title: "Yard Sale", time: "07:00 - 10:00 PM", price: 5.0, ticketsLeft: 13, totalTickets: 25 },
 ];
 
-const chartConfig = {
-  earnings: { label: "Earnings", color: "hsl(var(--accent))" },
-  expenses: { label: "Expenses", color: "hsl(var(--chart-2))" },
-};
-
-const feeDetailsData = [
-  { studId: "8A0168", name: "John Doe", avatar: "https://picsum.photos/32/32?random=10", feeType: "Monthly Fee", feeAmount: 1436, status: "Paid" },
-  { studId: "9C0189", name: "Jenny Wilson", avatar: "https://picsum.photos/32/32?random=11", feeType: "Annual Exam Fee", feeAmount: 800, status: "Not paid" },
-  { studId: "6D0211", name: "Robert Fox", avatar: "https://picsum.photos/32/32?random=12", feeType: "Class Test", feeAmount: 275, status: "Not paid" },
-  { studId: "9B0078", name: "Jacob Jones", avatar: "https://picsum.photos/32/32?random=13", feeType: "Monthly Fee", feeAmount: 1436, status: "Paid" },
-  { studId: "7A0022", name: "Wade Warren", avatar: "https://picsum.photos/32/32?random=14", feeType: "Monthly Fee", feeAmount: 1436, status: "Paid" },
-];
-
-const topPerformersData = [
-  { studId: "8A0168", name: "Ralph Edwards", avatar: "https://picsum.photos/32/32?random=20", classSection: "8.A", percentage: "98.5%", classRank: "1st Rank" },
-  { studId: "9C0189", name: "Jane Cooper", avatar: "https://picsum.photos/32/32?random=21", classSection: "9.C", percentage: "97%", classRank: "3rd Rank" },
-  { studId: "8D0072", name: "Wade Warren", avatar: "https://picsum.photos/32/32?random=22", classSection: "8.D", percentage: "96.25%", classRank: "1st Rank" },
-  { studId: "6B0231", name: "Cody Fisher", avatar: "https://picsum.photos/32/32?random=23", classSection: "6.B", percentage: "97.83%", classRank: "2nd Rank" },
-  { studId: "7D0147", name: "Kristin Watson", avatar: "https://picsum.photos/32/32?random=24", classSection: "7.D", percentage: "96.46%", classRank: "1st Rank" },
-];
-
-const eventsData = [
-    { date: "01 Jan, 2023", title: "New Year Celebration", time: "10:00 AM" },
-    { date: "26 Jan, 2023", title: "Republic Day Celebration", time: "09:00 AM" },
-    { date: "15 Feb, 2023", title: "Science Fair", time: "Full Day" },
-];
-
-const attendanceData = [
-  { name: 'Students', value: 84, fill: 'hsl(var(--accent))' }, // Blue
-  { name: 'Faculty', value: 91, fill: 'hsl(var(--chart-2))' }, // Yellow/Orange
-];
 
 export default function AdminDashboardPage() {
-  const [calendarDate, setCalendarDate] = useState<Date | undefined>(new Date(2023,0,1)); // January 2023
-  const [currentMonthEvents, setCurrentMonthEvents] = useState(eventsData.slice(0,2));
+  const [currentMonth, setCurrentMonth] = useState(new Date(2021, 11, 1)); // December 2021
+  const [events, setEvents] = useState<SchoolEvent[]>(sampleEvents); // Later from Firebase
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date(2021, 11, 6));
 
 
-  // TODO: Fetch data from Firebase here using useEffect and store in state variables.
-  // For example:
-  // useEffect(() => {
-  //   const fetchData = async () => {
-  //     // const studentsSnap = await getDocs(collection(db, "students"));
-  //     // setStudentsCount(studentsSnap.size);
-  //     // ... fetch other data
-  //   };
-  //   fetchData();
-  // }, []);
+  // TODO: Fetch events from Firebase based on currentMonth
+  useEffect(() => {
+    // const fetchEvents = async () => { ... }
+    // fetchEvents();
+    const eventsForSelectedDate = sampleEvents.filter(event => 
+        event.date.getFullYear() === selectedDate?.getFullYear() &&
+        event.date.getMonth() === selectedDate?.getMonth() &&
+        event.date.getDate() === selectedDate?.getDate()
+    );
+    // For the event list, we might want to show upcoming events or events for the month
+    // For now, let's show events from the sample that match the initial selected date's month
+    const initialEventsForList = sampleEvents.filter(event =>
+        event.date.getFullYear() === currentMonth.getFullYear() &&
+        event.date.getMonth() === currentMonth.getMonth()
+    ).sort((a,b) => a.date.getTime() - b.date.getTime());
 
-  const statsCards = [
-    { title: "Students", value: "1279", icon: GraduationCap, bgColor: "bg-yellow-100", textColor: "text-yellow-600", iconColor:"text-yellow-500" },
-    { title: "Faculty", value: "254", icon: Briefcase, bgColor: "bg-blue-100", textColor: "text-blue-600", iconColor:"text-blue-500" },
-    { title: "Parents", value: "872", icon: Users, bgColor: "bg-green-100", textColor: "text-green-600", iconColor: "text-green-500"},
-    { title: "Earnings", value: "$42.8k", icon: BadgeDollarSign, bgColor: "bg-red-100", textColor: "text-red-600", iconColor: "text-red-500" },
-  ];
+    // The provided image shows event list for "Nov 20th, 2020", let's hardcode that for display for now
+    setEvents(sampleEvents.filter(e => e.id.startsWith("evt_")));
+
+
+  }, [currentMonth, selectedDate]);
+
+  const handlePrevMonth = () => {
+    setCurrentMonth(subMonths(currentMonth, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(addMonths(currentMonth, 1));
+  };
+
+  const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) });
+  const firstDayOfMonth = getDay(startOfMonth(currentMonth)); // 0 for Sunday, 1 for Monday etc.
+  
+  // Adjust to make Monday the first day of the week (0 for Monday)
+  const adjustedFirstDayOfMonth = (firstDayOfMonth === 0) ? 6 : firstDayOfMonth - 1;
+
+
+  const getEventsForDate = (date: Date): SchoolEvent[] => {
+    return sampleEvents.filter(event => 
+      event.date.getFullYear() === date.getFullYear() &&
+      event.date.getMonth() === date.getMonth() &&
+      event.date.getDate() === date.getDate()
+    );
+  };
+
 
   return (
-    <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {statsCards.map((stat) => (
-          <Card key={stat.title} className="shadow-sm">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className={`p-3 rounded-full ${stat.bgColor}`}>
-                <stat.icon className={`h-6 w-6 ${stat.iconColor}`} />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">{stat.title}</p>
-                <p className={`text-2xl font-bold ${stat.textColor}`}>{stat.value}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+    <div className="flex flex-col h-full p-4 md:p-6 bg-secondary/30"> {/* Light gray background for the page */}
+      {/* Page Header Area */}
+      <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
+        <div className="flex items-center gap-2">
+          <div className="md:hidden">
+             {/* SidebarTrigger should ideally be in AdminHeader, but for this specific layout, if AdminHeader is not used or very minimal */}
+             {/* This is a bit of a hack if AdminHeader isn't providing it. */}
+            <SidebarTrigger />
+          </div>
+          <h1 className="text-2xl font-semibold text-foreground">Events</h1>
+        </div>
+        
+        <div className="flex items-center gap-2 sm:gap-4 flex-wrap justify-center">
+            <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="h-8 w-8">
+                    <ChevronLeft className="h-5 w-5" />
+                </Button>
+                <span className="text-sm font-medium text-foreground w-28 text-center">{format(currentMonth, "MMMM yyyy")}</span>
+                <Button variant="ghost" size="icon" onClick={handleNextMonth} className="h-8 w-8">
+                    <ChevronRight className="h-5 w-5" />
+                </Button>
+            </div>
+            <div className="relative min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input type="search" placeholder="Search here..." className="pl-9 h-9 rounded-full bg-background border-border" />
+            </div>
+            <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:bg-muted/50"><Bell className="h-5 w-5"/></Button>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:bg-muted/50"><MessageSquare className="h-5 w-5"/></Button>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full text-muted-foreground hover:bg-muted/50"><UserCircle className="h-5 w-5"/></Button>
+            </div>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="h-9 rounded-full text-xs px-3">
+                        ENGLISH <ChevronDown className="ml-1 h-3 w-3"/>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem>English</DropdownMenuItem>
+                    <DropdownMenuItem>French</DropdownMenuItem>
+                    <DropdownMenuItem>Kinyarwanda</DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+            <Button className="h-9 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs px-4">
+                <Users className="mr-2 h-4 w-4" /> New Teachers
+            </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Total Earnings Chart */}
-        <Card className="lg:col-span-2 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Total Earnings</CardTitle>
-            <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 text-xs"> <span className="h-2 w-2 rounded-full bg-[hsl(var(--accent))]"></span> Earnings </div>
-                <div className="flex items-center gap-1 text-xs"> <span className="h-2 w-2 rounded-full bg-[hsl(var(--chart-2))]"></span> Expenses </div>
-                <Button variant="outline" size="sm" className="h-8 text-xs">2022 <ChevronDown className="ml-1 h-3 w-3"/></Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button>
+      {/* Main Content Area: Calendar + Event List */}
+      <div className="flex-grow flex flex-col lg:flex-row gap-6">
+        {/* Calendar View */}
+        <div className="flex-grow lg:w-2/3 bg-card p-4 rounded-lg shadow">
+            <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-muted-foreground mb-2">
+                {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map(day => (
+                    <div key={day}>{day.slice(0,3)}</div>
+                ))}
             </div>
-          </CardHeader>
-          <CardContent className="h-[300px] p-2">
-            <ChartContainer config={chartConfig} className="w-full h-full">
-              <BarChart data={totalEarningsData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={12} />
-                <YAxis tickLine={false} axisLine={false} fontSize={12} tickFormatter={(value) => `$${value/1000}K`} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="earnings" fill="var(--color-earnings)" radius={[4, 4, 0, 0]} barSize={15}/>
-                <Bar dataKey="expenses" fill="var(--color-expenses)" radius={[4, 4, 0, 0]} barSize={15}/>
-              </BarChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
+            <div className="grid grid-cols-7 grid-rows-5 gap-1 h-[calc(100%-2rem-0.5rem)]">
+                {/* Empty cells for days before the start of the month */}
+                {Array.from({ length: adjustedFirstDayOfMonth }).map((_, i) => (
+                    <div key={`empty-${i}`} className="bg-secondary/40 rounded-md"></div>
+                ))}
+                {/* Calendar Days */}
+                {days.map((day) => {
+                    const dayEvents = getEventsForDate(day);
+                    const isSelected = selectedDate && day.toDateString() === selectedDate.toDateString();
+                    return (
+                        <div 
+                            key={day.toString()} 
+                            onClick={() => setSelectedDate(day)}
+                            className={`p-2 rounded-md cursor-pointer transition-colors min-h-[80px] flex flex-col justify-between
+                                ${isSelected ? 'bg-primary text-primary-foreground shadow-lg scale-105' : 'bg-background hover:bg-muted/50'}
+                                ${day.getMonth() !== currentMonth.getMonth() ? 'text-muted-foreground/50' : 'text-foreground'}
+                            `}
+                        >
+                            <span className={`font-medium text-sm ${isSelected ? '' : 'text-right'}`}>{format(day, "d")}</span>
+                            {dayEvents.length > 0 && (
+                                <div className="mt-auto">
+                                    {dayEvents.length <=3 && dayEvents[0].attendees && dayEvents[0].attendees.length > 0 && !isSelected && (
+                                        <div className="flex -space-x-1 overflow-hidden justify-start mt-1">
+                                            {dayEvents[0].attendees.slice(0,3).map((att, idx) => (
+                                                <Avatar key={idx} className="inline-block h-4 w-4 rounded-full ring-1 ring-background">
+                                                    <AvatarImage src={att} data-ai-hint="user avatar small" />
+                                                    <AvatarFallback>U</AvatarFallback>
+                                                </Avatar>
+                                            ))}
+                                            {dayEvents[0].attendees.length > 3 && <span className="text-xs font-light pl-1.5 pt-0.5">+{dayEvents[0].attendees.length-3}</span>}
+                                        </div>
+                                    )}
+                                     {dayEvents.length > 0 && dayEvents[0].price && !isSelected && (
+                                        <p className={`text-xs truncate ${isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                                            ${dayEvents[0].price.toFixed(2)}
+                                        </p>
+                                    )}
+                                    {dayEvents.length > 0 && dayEvents[0].title && isSelected && (
+                                        <p className="text-xs font-semibold truncate mt-1">{dayEvents[0].title}</p>
+                                    )}
+                                    {dayEvents.length > 0 && !isSelected && (
+                                       <div className="flex space-x-1 mt-1 justify-start">
+                                            {dayEvents.slice(0, 3).map(e => (
+                                                <span key={e.id} className={`h-1.5 w-1.5 rounded-full ${e.color || 'bg-gray-400'}`}></span>
+                                            ))}
+                                        </div>
+                                    )}
 
-        {/* Events Calendar */}
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Events Calendar</CardTitle>
-            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button>
-          </CardHeader>
-          <CardContent className="p-2">
-            {currentMonthEvents.map(event => (
-                <Link href="#" key={event.title} className="mb-2 flex items-center justify-between p-3 bg-secondary/50 rounded-md hover:bg-secondary transition-colors">
-                    <div>
-                        <p className="text-xs text-muted-foreground">{event.date}</p>
-                        <p className="text-sm font-medium text-foreground">{event.title}</p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground"/>
-                </Link>
-            ))}
-             <Calendar
-                mode="single"
-                selected={calendarDate}
-                onSelect={setCalendarDate}
-                className="rounded-md border-none p-0 mt-2 [&_button]:h-7 [&_button]:w-7 [&_caption_label]:text-sm"
-                classNames={{
-                    caption_label: "text-sm font-medium text-primary",
-                    head_cell: "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]",
-                    cell: "text-center text-sm p-0 relative [&:has([aria-selected])]:bg-primary/10 first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-                    day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                    day_today: "bg-accent/20 text-accent-foreground",
-                }}
-                components={{
-                    IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
-                    IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
-                }}
-            />
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Fee Details Table */}
-        <Card className="lg:col-span-2 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Fee Details</CardTitle>
-            <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="h-8 w-8"><Settings className="h-4 w-4 text-muted-foreground"/></Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4 text-muted-foreground"/></Button>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+                 {/* Empty cells for days after the end of the month to fill the grid */}
+                {Array.from({ length: (7 * 5) - days.length - adjustedFirstDayOfMonth }).map((_, i) => (
+                    <div key={`empty-end-${i}`} className="bg-secondary/40 rounded-md"></div>
+                ))}
             </div>
+        </div>
+
+        {/* Event List Sidebar */}
+        <Card className="lg:w-1/3 shadow-lg">
+          <CardHeader className="border-b">
+            <CardTitle className="text-lg">Event List</CardTitle>
+            <CardDescription className="text-xs">Lorem ipsum dolor sit amet.</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader className="bg-secondary/30">
-                <TableRow>
-                  <TableHead className="pl-6">Stud ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Fee Type</TableHead>
-                  <TableHead>Fee Amount</TableHead>
-                  <TableHead className="pr-6">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {feeDetailsData.map((fee) => (
-                  <TableRow key={fee.studId}>
-                    <TableCell className="pl-6 text-muted-foreground">{fee.studId}</TableCell>
-                    <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                                <AvatarImage src={fee.avatar} alt={fee.name} data-ai-hint="student avatar"/>
-                                <AvatarFallback>{fee.name[0]}</AvatarFallback>
-                            </Avatar>
-                            {fee.name}
-                        </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{fee.feeType}</TableCell>
-                    <TableCell className="text-muted-foreground">${fee.feeAmount}</TableCell>
-                    <TableCell className="pr-6">
-                      <Badge variant={fee.status === "Paid" ? "default" : "destructive"} 
-                             className={fee.status === "Paid" ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200"}>
-                        {fee.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-             <div className="p-4 text-right">
-                <Button variant="link" size="sm" className="text-primary hover:underline">See All <ArrowRight className="ml-1 h-3 w-3"/></Button>
+            <div className="max-h-[calc(100vh-20rem)] overflow-y-auto event-list-scrollbar"> {/* Custom scrollbar class */}
+            {events.filter(e => e.id.startsWith("evt_")).map((event) => (
+              <div key={event.id} className="p-4 border-b last:border-b-0 hover:bg-muted/30">
+                <div className="flex justify-between items-start mb-1">
+                  <h4 className="font-semibold text-sm text-foreground">{event.title}</h4>
+                  {event.price !== undefined && <span className="text-sm font-bold text-primary">${event.price.toFixed(2)}</span>}
+                </div>
+                <p className="text-xs text-muted-foreground mb-2">
+                  <CalendarIcon className="inline h-3 w-3 mr-1" /> {format(event.date, "MMM do, yyyy")} &nbsp;
+                  <Clock className="inline h-3 w-3 mr-1" /> {event.time}
+                </p>
+                {event.totalTickets && event.ticketsLeft !== undefined && (
+                  <>
+                    <Progress value={(event.ticketsLeft / event.totalTickets) * 100} className="h-1.5 mb-1" />
+                    <p className="text-xs text-muted-foreground">{event.ticketsLeft} ticket left</p>
+                  </>
+                )}
+                 <Button variant="ghost" size="icon" className="absolute right-2 top-2 h-7 w-7 text-muted-foreground">
+                    <MoreVertical className="h-4 w-4"/>
+                </Button>
+              </div>
+            ))}
             </div>
           </CardContent>
-        </Card>
-
-        {/* Attendance Chart */}
-        <Card className="shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg">Attendance</CardTitle>
-                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4"/></Button>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center h-[250px] pt-0">
-                 <ResponsiveContainer width="100%" height="100%">
-                    <RadialBarChart 
-                        innerRadius="60%" 
-                        outerRadius="85%" 
-                        barSize={15} 
-                        data={attendanceData} 
-                        startAngle={90} 
-                        endAngle={-270}
-                    >
-                        <RadialBar
-                            background
-                            dataKey="value"
-                            cornerRadius={10}
-                        />
-                         <RechartsTooltip contentStyle={{fontSize: '12px', padding: '5px 8px', borderRadius: '4px'}} />
-                        <Legend 
-                            iconSize={10} 
-                            layout="horizontal" 
-                            verticalAlign="bottom" 
-                            align="center"
-                            formatter={(value, entry) => <span className="text-xs text-muted-foreground">{value} {entry.payload?.value}%</span>}
-                        />
-                    </RadialBarChart>
-                </ResponsiveContainer>
-            </CardContent>
+           <CardFooter className="p-4 border-t">
+                <Button variant="outline" className="w-full rounded-full">View All Events</Button>
+           </CardFooter>
         </Card>
       </div>
-
-      {/* Top Performers Table */}
-      <Card className="shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg">Top Performers</CardTitle>
-           <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="h-8 w-8"><Settings className="h-4 w-4 text-muted-foreground"/></Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4 text-muted-foreground"/></Button>
-            </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-secondary/30">
-              <TableRow>
-                <TableHead className="pl-6">Stud ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Class.Section</TableHead>
-                <TableHead>Percentage</TableHead>
-                <TableHead className="pr-6">Class Rank</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {topPerformersData.map((perf) => (
-                <TableRow key={perf.studId}>
-                  <TableCell className="pl-6 text-muted-foreground">{perf.studId}</TableCell>
-                  <TableCell className="font-medium">
-                     <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                            <AvatarImage src={perf.avatar} alt={perf.name} data-ai-hint="student avatar"/>
-                            <AvatarFallback>{perf.name[0]}</AvatarFallback>
-                        </Avatar>
-                        {perf.name}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{perf.classSection}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30 font-medium">{perf.percentage}</Badge>
-                  </TableCell>
-                  <TableCell className="pr-6 text-muted-foreground">{perf.classRank}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <div className="p-4 text-right">
-                <Button variant="link" size="sm" className="text-primary hover:underline">See All <ArrowRight className="ml-1 h-3 w-3"/></Button>
-            </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
+
+// Clock icon for event list
+const Clock = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+);
 

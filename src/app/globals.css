@@ -37,24 +37,23 @@
     --radius: 0.5rem; /* Default radius for rounded elements */
 
     /* Chart colors */
-    --chart-1: 210 100% 50%; /* Primary Blue */
-    --chart-2: 145 63% 40%;  /* Accent Green */
-    --chart-3: 45 90% 55%;   /* Yellow/Orange */
-    --chart-4: 270 80% 65%;  /* Purple */
-    --chart-5: 0 0% 60%;     /* Gray */
+    --chart-1: 210 80% 50%; /* Primary Blue - adjusted from original for admin dashboard */
+    --chart-2: 145 60% 45%;  /* Accent Green - adjusted */
+    --chart-3: 35 90% 60%;   /* Yellow/Orange - adjusted */
+    --chart-4: 260 75% 60%;  /* Purple - adjusted */
+    --chart-5: 210 10% 55%;     /* Gray - adjusted */
 
-    /* Sidebar specific colors - made more neutral */
-    --sidebar-background: 0 0% 100%; /* White or very light gray like current --background */
-    --sidebar-foreground: 210 10% 35%; /* Slightly darker gray for text */
-    --sidebar-border: 210 15% 90%; /* Light border for sidebar */
+    /* Sidebar specific colors - Updated for new AdminSchool design (dark sidebar) */
+    --sidebar-background: 220 25% 18%; /* Dark blue-gray */
+    --sidebar-foreground: 210 20% 85%; /* Light gray text */
+    --sidebar-border: 220 25% 25%;   /* Slightly lighter border */
     
-    /* Sidebar Accent for active/hover items: Use primary color from the new theme */
-    --sidebar-accent: 210 100% 96%; /* Very light blue (related to primary) for hover/active items background */
-    --sidebar-accent-foreground: 210 100% 45%; /* Primary color (blue) for active item text/icon */
+    --sidebar-accent: 205 75% 48%;       /* Blue for active item background */
+    --sidebar-accent-foreground: 0 0% 100%; /* White text for active item */
     
-    --sidebar-primary: 210 100% 50%; /* For logo text or important sidebar elements (main blue) */
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-ring: 210 100% 60%; /* Ring color related to primary */
+    --sidebar-primary: 205 75% 55%; /* Brighter blue for logo text, important icons */
+    --sidebar-primary-foreground: 0 0% 100%; /* White */
+    --sidebar-ring: 205 75% 65%; /* Ring color related to primary */
   }
 
   .dark {
@@ -87,15 +86,15 @@
     --input: 210 10% 22%;
     --ring: 210 90% 65%;
     
-    /* Sidebar Dark Theme */
-    --sidebar-background: 210 10% 10%; /* Darker background for sidebar */
-    --sidebar-foreground: 210 10% 75%;
-    --sidebar-border: 210 10% 20%;
-    --sidebar-accent: 210 100% 20%; /* Darker blue for hover/active background */
-    --sidebar-accent-foreground: 210 100% 65%; /* Lighter blue for active text/icon */
-    --sidebar-primary: 210 90% 55%;
+    /* Sidebar Dark Theme - already dark, but if main theme is dark, these might need slight tweaks */
+    --sidebar-background: 220 25% 15%; /* Slightly darker if main bg is already dark */
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-border: 220 25% 22%;
+    --sidebar-accent: 205 70% 50%; 
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-primary: 205 70% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-ring: 210 90% 65%;
+    --sidebar-ring: 205 70% 70%;
   }
 }
 
@@ -114,5 +113,23 @@
   }
   main {
     flex-grow: 1;
+  }
+}
+
+/* Custom scrollbar for event list in admin dashboard */
+@layer utilities {
+  .event-list-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .event-list-scrollbar::-webkit-scrollbar-track {
+    background: hsl(var(--secondary));
+    border-radius: 10px;
+  }
+  .event-list-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 10px;
+  }
+  .event-list-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
   }
 }

@@ -7,8 +7,8 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 
 
 export const metadata: Metadata = {
-  title: "Admin - Dobson School",
-  description: "Admin panel for Dobson School.",
+  title: "Admin - AdminSchool", // Updated title
+  description: "Admin panel for AdminSchool.",
 };
 
 export default function AdminLayout({
@@ -17,12 +17,14 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ProtectedRoute adminOnly={true}> {/* Assuming admin section requires admin role */}
-      <SidebarProvider defaultOpen={true}> {/* Sidebar is always open in the new design */}
+    <ProtectedRoute adminOnly={true}>
+      {/* Sidebar is collapsible by icon by default in new AdminSidebar */}
+      <SidebarProvider defaultOpen={true}> 
           <AdminSidebar />
-          <SidebarInset className="bg-background"> {/* Main content area has a different background from sidebar */}
-              <AdminHeader />
-              <main className="flex-1 p-6 bg-secondary/50"> {/* Adjusted padding and background */}
+          {/* Main content area will have its background set by the page or a wrapper inside children */}
+          <SidebarInset className="bg-transparent"> {/* Changed to transparent to let page control bg */}
+              <AdminHeader /> {/* Contains mobile trigger and global user actions */}
+              <main className="flex-1"> {/* Removed p-6 and bg-secondary/50, page will handle it */}
                   {children}
               </main>
           </SidebarInset>

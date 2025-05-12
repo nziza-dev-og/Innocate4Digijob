@@ -12,8 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Search, Settings, User, LogOut, Bell, Sun, Moon } from "lucide-react"; // Assuming Sun/Moon for theme toggle
+import { Settings, User, LogOut, Bell } from "lucide-react"; 
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/use-auth-hook";
 // import { useTheme } from "next-themes"; // If theme toggle is implemented
@@ -24,24 +23,14 @@ export function AdminHeader() {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-4 sm:px-6">
-      {/* Sidebar trigger for mobile - can be adapted from original AdminHeader or Sidebar component */}
       <div className="md:hidden">
         <SidebarTrigger />
       </div>
+      
+      {/* Dynamic page title can be passed as a prop or managed by a context if needed elsewhere */}
+      {/* For now, the title "Events" will be part of the dashboard page itself */}
 
-      {/* Dashboard Title - can be dynamic based on page */}
-      <h1 className="text-xl font-semibold text-foreground hidden md:block">Dashboard</h1>
-
-      <div className="ml-auto flex items-center gap-4">
-        <div className="relative flex-1 md:grow-0 max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search for students/teachers/documents..."
-            className="w-full rounded-lg bg-input pl-8 pr-2 py-2 h-10 text-sm"
-          />
-        </div>
-
+      <div className="ml-auto flex items-center gap-2 md:gap-4">
         {/* Theme Toggle Example - uncomment if next-themes is set up */}
         {/* 
         <Button
@@ -54,9 +43,9 @@ export function AdminHeader() {
         </Button>
         */}
         
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full">
           <Bell className="h-5 w-5" />
-          <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-destructive-foreground bg-destructive rounded-full transform translate-x-1/2 -translate-y-1/2">
+          <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold leading-none text-destructive-foreground bg-destructive rounded-full transform translate-x-1/2 -translate-y-1/2">
             3 {/* Example notification count */}
           </span>
           <span className="sr-only">Notifications</span>
@@ -67,10 +56,10 @@ export function AdminHeader() {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="relative h-10 w-10 rounded-full"
+                className="relative h-10 w-10 rounded-full p-0"
               >
                 <Avatar className="h-9 w-9">
-                  <AvatarImage src={user.photoURL || `https://picsum.photos/40/40?u=${user.uid}`} alt={user.displayName || "User"} data-ai-hint="user avatar"/>
+                  <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/40/40`} alt={user.displayName || "User"} data-ai-hint="user avatar"/>
                   <AvatarFallback>{user.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
                 </Avatar>
               </Button>
@@ -82,6 +71,9 @@ export function AdminHeader() {
                   <p className="text-xs leading-none text-muted-foreground">
                     {user.email}
                   </p>
+                   <p className="text-xs leading-none text-muted-foreground capitalize pt-1">
+                    Role: {user.role || 'Admin'}
+                  </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -92,13 +84,13 @@ export function AdminHeader() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="#">
+                <Link href="#"> {/* Actual profile page to be created */}
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={signOut}>
+              <DropdownMenuItem onClick={signOut} className="text-destructive hover:!text-destructive focus:text-destructive focus:bg-destructive/10">
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
