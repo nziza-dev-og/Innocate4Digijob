@@ -1,3 +1,4 @@
+
 "use client";
 import type { ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -17,10 +18,8 @@ export function AuthAwareLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!loading && user && isAuthRoute) {
-      // If on an auth page and logged in, redirect to the appropriate dashboard
       router.push(isUserAdmin ? '/admin/dashboard' : '/dashboard');
     }
-    // ProtectedRoute component will handle unauthorized access to admin or user dashboard routes
   }, [user, loading, isAuthRoute, isUserAdmin, router, pathname]);
 
 
@@ -30,20 +29,13 @@ export function AuthAwareLayout({ children }: { children: ReactNode }) {
   }
 
   if (isAdminRoute || isUserDashboardRoute) {
-    // Admin and User Dashboard pages have their own layout structure (AdminLayout, DashboardLayout), 
-    // which includes ProtectedRoute. Navbar/Footer are not part of these layouts by default here.
-    // Specific layouts (AdminLayout, DashboardLayout) will render their own Navbar/Header if needed.
-    // For now, the main Navbar/Footer are excluded from these dedicated sections.
-    // We can add a simpler header/footer within those layouts if needed.
+    // Admin and User Dashboard pages have their own layout structure (AdminLayout, DashboardLayout),
+    // which includes ProtectedRoute. These layouts will render their own specific headers/sidebars.
+    // The main Navbar and Footer are not rendered for these dedicated sections.
      return (
-        <>
-            {/* Navbar can be conditional or a different one for dashboard view */}
-            {isUserDashboardRoute && <Navbar />} 
-            <main className="flex-grow">
-                {children}
-            </main>
-            {isUserDashboardRoute && <Footer />}
-        </>
+        <main className="flex-grow"> {/* Occupies full height for sidebar layouts */}
+            {children}
+        </main>
      );
   }
 

@@ -13,21 +13,25 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { Asterisk, Loader2 } from "lucide-react";
+import { Asterisk, Loader2, ShieldAlert } from "lucide-react";
 import { DecorativeAuthElements } from "@/components/auth/decorative-elements";
 import { useAuth } from "@/hooks/use-auth-hook";
 import { useState } from "react";
+
+const ADMIN_SECRET_CODE = "innnovate4"; // Securely store this, ideally not in client-side code for production
 
 const registerFormSchema = z.object({
   fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
   email: z.string().email({ message: "Please enter a valid email address." }),
   password: z.string().min(6, { message: "Password must be at least 6 characters." }),
   confirmPassword: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  adminSecretCode: z.string().optional(),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords do not match.",
   path: ["confirmPassword"],
@@ -38,7 +42,7 @@ type RegisterFormValues = z.infer<typeof registerFormSchema>;
 export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { signUp, loading: authLoading, error: authError } = useAuth();
+  const { signUp, loading: authLoading } = useAuth(); // Removed authError as it's handled in onSubmit
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<RegisterFormValues>({
@@ -48,25 +52,40 @@ export default function RegisterPage() {
       email: "",
       password: "",
       confirmPassword: "",
+      adminSecretCode: "",
     },
   });
 
   async function onSubmit(values: RegisterFormValues) {
     setIsSubmitting(true);
-    // Default role can be 'student' or 'user'. Admins would typically be set manually or via a separate process.
-    const user = await signUp(values.email, values.password, values.fullName, "user");
+    let role = "user";
+    if (values.adminSecretCode) {
+      if (values.adminSecretCode === ADMIN_SECRET_CODE) {
+        role = "admin";
+      } else {
+        toast({
+          title: "Invalid Admin Code",
+          description: "The admin secret code is incorrect. Proceeding with user registration.",
+          variant: "destructive",
+        });
+        // Optionally, prevent registration if code is entered but wrong,
+        // or just register as a normal user. Current logic: registers as user.
+      }
+    }
+
+    const { user, error } = await signUp(values.email, values.password, values.fullName, role);
     setIsSubmitting(false);
 
     if (user) {
       toast({
         title: "Registration Successful",
-        description: "Your account has been created. Please login.",
+        description: `Your account has been created as a ${role}. Please login.`,
       });
       router.push("/login"); 
     } else {
        toast({
         title: "Registration Failed",
-        description: authError?.message || "Could not create account. Please try again.",
+        description: error?.message || "Could not create account. Please try again.",
         variant: "destructive",
       });
     }
@@ -77,7 +96,7 @@ export default function RegisterPage() {
       <header className="w-full p-4 sm:p-6 bg-primary text-primary-foreground">
         <div className="container mx-auto flex items-center">
           <Asterisk className="h-6 w-6 sm:h-8 sm:w-8 mr-2" />
-          <h1 className="text-xl sm:text-2xl font-semibold">Draft design school</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold">DigiSpark</h1>
         </div>
       </header>
 
@@ -149,6 +168,24 @@ export default function RegisterPage() {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="adminSecretCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs text-muted-foreground flex items-center">
+                        Admin Secret Code <ShieldAlert className="ml-1 h-3 w-3 text-yellow-500" />
+                      </FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="Optional" {...field} className="bg-input text-foreground placeholder:text-muted-foreground/70 h-12 text-sm px-4" />
+                      </FormControl>
+                      <FormDescription className="text-xs">
+                        Enter this code only if you are an administrator.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground h-12 text-base" disabled={isSubmitting || authLoading}>
                   {isSubmitting || authLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Create Account"}
                 </Button>
@@ -160,7 +197,7 @@ export default function RegisterPage() {
             <div className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}
               <Link href="/login" passHref>
-                <Button variant="link" className="font-semibold text-accent hover:underline p-0 h-auto">
+                <Button variant="link" className="font-semibold text-primary hover:underline p-0 h-auto">
                   Sign in
                 </Button>
               </Link>

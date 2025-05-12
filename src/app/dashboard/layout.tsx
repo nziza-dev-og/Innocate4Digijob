@@ -1,6 +1,11 @@
+
 import type { Metadata } from "next";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import type { ReactNode } from "react";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { StudentSidebar } from "@/components/layout/student-sidebar";
+import { StudentHeader } from "@/components/layout/student-header";
+
 
 export const metadata: Metadata = {
   title: "My Dashboard - DigiSpark",
@@ -13,14 +18,16 @@ export default function DashboardLayout({
   children: ReactNode;
 }) {
   return (
-    // Protect this route for any logged-in user (adminOnly is false by default or explicitly set)
-    <ProtectedRoute adminOnly={false}>
-      {/* 
-        The AuthAwareLayout will handle Navbar and Footer for /dashboard routes
-        if we want them. For a cleaner dashboard view, they can be omitted here
-        and a specific DashboardHeader could be added if needed.
-      */}
-      {children}
+    <ProtectedRoute adminOnly={false}> {/* Students and other non-admin users */}
+      <SidebarProvider defaultOpen={true}> {/* Sidebar is always open for student dashboard design */}
+          <StudentSidebar />
+          <SidebarInset className="bg-secondary/30"> {/* Main content area slightly different background */}
+              <StudentHeader />
+              <main className="flex-1 p-6"> {/* Main content padding */}
+                  {children}
+              </main>
+          </SidebarInset>
+      </SidebarProvider>
     </ProtectedRoute>
   );
 }

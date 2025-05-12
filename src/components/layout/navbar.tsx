@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from 'next/link';
@@ -29,8 +30,8 @@ export function Navbar() {
   const isUserDashboardPage = pathname.startsWith('/dashboard');
 
 
-  if (isAdminPage) {
-    return null; // Admin layout will handle its own header/sidebar
+  if (isAdminPage || isUserDashboardPage) { // Navbar should not show on admin or student dashboard pages
+    return null;
   }
 
   const navLinksToDisplay = isAuthPage ? [] : mainNavLinks;
@@ -65,8 +66,8 @@ export function Navbar() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" className="rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.photoURL || `https://picsum.photos/40/40?u=${user.uid}`} alt={user.displayName || "User"} data-ai-hint="user avatar" />
-                    <AvatarFallback>{user.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
+                    <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user.uid}/40/40`} alt={user.displayName || "User"} data-ai-hint="user avatar" />
+                    <AvatarFallback>{user.displayName?.[0].toUpperCase() || user.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
@@ -78,16 +79,16 @@ export function Navbar() {
                     <Link href="/admin/dashboard"><LayoutDashboard className="mr-2 h-4 w-4" />Admin Panel</Link>
                   </DropdownMenuItem>
                 )}
-                {!isUserAdmin && (
+                {!isUserAdmin && ( // This condition was correct, student dashboard link
                   <DropdownMenuItem asChild>
                     <Link href="/dashboard"><User className="mr-2 h-4 w-4" />My Dashboard</Link>
                   </DropdownMenuItem>
                 )}
                  <DropdownMenuItem asChild>
-                    <Link href="/admin/settings"><Settings className="mr-2 h-4 w-4" />Settings</Link>
+                    <Link href={isUserAdmin ? "/admin/settings" : "/dashboard/settings"}><Settings className="mr-2 h-4 w-4" />Settings</Link>
                  </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={signOut}>
+                <DropdownMenuItem onClick={signOut} className="text-red-600 hover:!text-red-600 hover:!bg-red-50">
                   <LogOutIcon className="mr-2 h-4 w-4" /> Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -104,7 +105,7 @@ export function Navbar() {
               <LogIn className="mr-2 h-4 w-4" /> Login
             </Link>
           </Button>
-          <Button asChild className={isMobile ? "w-full justify-start text-lg bg-accent hover:bg-accent/90 text-accent-foreground mt-2" : "hidden md:inline-flex bg-accent hover:bg-accent/90"}>
+          <Button asChild className={isMobile ? "w-full justify-start text-lg bg-accent hover:bg-accent/90 text-accent-foreground mt-2" : "bg-accent hover:bg-accent/90 text-accent-foreground"}>
             <Link href="/register" onClick={() => isMobile && setIsOpen(false)}>
               <UserPlus className="mr-2 h-4 w-4" /> Register
             </Link>
@@ -127,12 +128,12 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 max-w-screen-2xl items-center justify-between px-4">
-        <Link href={isAuthPage || isUserDashboardPage ? "/" : "#home"} className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
+        <Link href={isAuthPage ? "/" : "#home"} className="flex items-center gap-2" onClick={() => setIsOpen(false)}>
           <Sparkles className="h-6 w-6 text-primary" />
           <span className="font-bold text-lg">DigiSpark</span>
         </Link>
 
-        {!isAuthPage && !isUserDashboardPage && (
+        {!isAuthPage && (
           <nav className="hidden md:flex gap-4 items-center">
             {navLinksToDisplay.map((link) => (
               <Link
@@ -147,11 +148,11 @@ export function Navbar() {
         )}
 
         <div className="flex items-center gap-2">
-          <React.Suspense fallback={null}> {/* Fallback for lazy loaded dropdown components */}
+          <React.Suspense fallback={<div className="h-8 w-20 rounded-full bg-muted animate-pulse" />}> {/* Fallback for lazy loaded dropdown components */}
             {renderAuthButtons()}
           </React.Suspense>
           
-          {!isAuthPage && !isUserDashboardPage && (
+          {!isAuthPage && (
             <div className="md:hidden">
               <Sheet open={isOpen} onOpenChange={setIsOpen}>
                 <SheetTrigger asChild>

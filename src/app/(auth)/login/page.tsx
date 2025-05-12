@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { Asterisk, Loader2 } from "lucide-react";
+import { Asterisk, Loader2, Sparkles } from "lucide-react"; // Changed Asterisk to Sparkles
 import { DecorativeAuthElements } from "@/components/auth/decorative-elements";
 import { useAuth } from "@/hooks/use-auth-hook";
 import { useState } from "react";
@@ -32,7 +33,7 @@ type LoginFormValues = z.infer<typeof loginFormSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { signIn, loading: authLoading } = useAuth(); // Removed authError from here as it's handled by signIn response
+  const { signIn, loading: authLoading } = useAuth(); 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<LoginFormValues>({
@@ -45,8 +46,8 @@ export default function LoginPage() {
 
   async function onSubmit(values: LoginFormValues) {
     setIsSubmitting(true);
-    const { user: loggedInUser, isAdmin } = await signIn(values.email, values.password);
-    setIsSubmitting(false); // Set submitting to false after signIn completes
+    const { user: loggedInUser, isAdmin, error } = await signIn(values.email, values.password);
+    setIsSubmitting(false); 
 
     if (loggedInUser) {
       toast({
@@ -59,11 +60,9 @@ export default function LoginPage() {
         router.push("/dashboard");
       }
     } else {
-      // Error is implicitly handled by the signIn function setting its internal error state
-      // and returning null for user. useAuth().error can be used if needed elsewhere.
       toast({
         title: "Login Failed",
-        description: "Invalid email or password. Please try again.", // Generic message
+        description: error?.message || "Invalid email or password. Please try again.", 
         variant: "destructive",
       });
     }
@@ -73,8 +72,8 @@ export default function LoginPage() {
     <div className="flex flex-col min-h-screen bg-background">
       <header className="w-full p-4 sm:p-6 bg-primary text-primary-foreground">
         <div className="container mx-auto flex items-center">
-          <Asterisk className="h-6 w-6 sm:h-8 sm:w-8 mr-2" />
-          <h1 className="text-xl sm:text-2xl font-semibold">Draft design school</h1>
+          <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 mr-2" />
+          <h1 className="text-xl sm:text-2xl font-semibold">DigiSpark</h1>
         </div>
       </header>
 
@@ -122,7 +121,7 @@ export default function LoginPage() {
                 />
                 <div className="flex items-center justify-end text-sm">
                   <Link href="/forgot-password" passHref>
-                    <Button variant="link" className="px-0 text-muted-foreground hover:text-accent text-xs h-auto py-0">Forgot password?</Button>
+                    <Button variant="link" className="px-0 text-muted-foreground hover:text-primary text-xs h-auto py-0">Forgot password?</Button>
                   </Link>
                 </div>
                 <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground h-12 text-base" disabled={isSubmitting || authLoading}>
@@ -136,7 +135,7 @@ export default function LoginPage() {
             <div className="text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}
               <Link href="/register" passHref>
-                <Button variant="link" className="font-semibold text-accent hover:underline p-0 h-auto">
+                <Button variant="link" className="font-semibold text-primary hover:underline p-0 h-auto">
                   Sign up
                 </Button>
               </Link>

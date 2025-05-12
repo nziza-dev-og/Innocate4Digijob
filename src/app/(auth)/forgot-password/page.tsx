@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Asterisk, ArrowLeft } from "lucide-react";
+import { Sparkles, ArrowLeft } from "lucide-react"; // Changed Asterisk to Sparkles
 import { DecorativeAuthElements } from "@/components/auth/decorative-elements";
 
 const forgotPasswordFormSchema = z.object({
@@ -35,19 +36,21 @@ export default function ForgotPasswordPage() {
   });
 
   async function onSubmit(values: ForgotPasswordFormValues) {
+    // TODO: Implement actual Firebase password reset logic
     console.log("Forgot password submitted", values);
     toast({
       title: "Password Reset Email Sent (Simulated)",
       description: "If an account exists for this email, you will receive reset instructions.",
     });
+    // Example: await sendPasswordResetEmail(auth, values.email);
   }
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="w-full p-4 sm:p-6 bg-primary text-primary-foreground">
         <div className="container mx-auto flex items-center">
-          <Asterisk className="h-6 w-6 sm:h-8 sm:w-8 mr-2" />
-          <h1 className="text-xl sm:text-2xl font-semibold">Draft design school</h1>
+          <Sparkles className="h-6 w-6 sm:h-8 sm:w-8 mr-2" />
+          <h1 className="text-xl sm:text-2xl font-semibold">DigiSpark</h1>
         </div>
       </header>
 
@@ -88,7 +91,7 @@ export default function ForgotPasswordPage() {
             
             <div className="text-center mt-6">
               <Link href="/login" passHref>
-                <Button variant="link" className="text-sm text-muted-foreground hover:text-accent">
+                <Button variant="link" className="text-sm text-muted-foreground hover:text-primary">
                   <ArrowLeft className="mr-1 h-4 w-4" /> Back to Sign In
                 </Button>
               </Link>
