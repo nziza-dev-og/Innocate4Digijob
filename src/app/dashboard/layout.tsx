@@ -21,11 +21,11 @@ export default function DashboardLayout({
     <ProtectedRoute adminOnly={false}> {/* Students and other non-admin users */}
       <SidebarProvider defaultOpen={true}> {/* Sidebar is always open for student dashboard design */}
           <StudentSidebar />
-           {/* Main content area adjusted to be full height */}
-          <SidebarInset className="bg-secondary/30 flex flex-col"> 
+           {/* Ensure SidebarInset takes full height and main content area scrolls */}
+          <SidebarInset className="bg-secondary/30 flex flex-col h-screen overflow-hidden"> {/* Added h-screen and overflow-hidden */}
               <StudentHeader />
-               {/* Main content padding and allow scrolling */}
-              <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+               {/* Main content should allow internal scrolling, padding is handled by page now */}
+              <main className="flex-1 overflow-y-auto"> {/* Removed padding, page will handle it */}
                   {children}
               </main>
           </SidebarInset>

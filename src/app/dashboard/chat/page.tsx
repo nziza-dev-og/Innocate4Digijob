@@ -80,23 +80,47 @@ export default function StudentChatPage() {
           const userDoc = await getDoc(doc(db, "users", otherParticipantId));
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            otherUserDetails = {
-              id: userDoc.id,
-              uid: userData.uid,
-              name: userData.displayName || "User", // Display name or fallback
-              photoURL: userData.photoURL,
-              role: userData.role,
-              isOnline: userData.isOnline || false,
-              lastSeen: userData.lastSeen ? (userData.lastSeen as Timestamp).toDate() : undefined,
-            };
+             if (userData.uid && userData.displayName) { // Validation
+                otherUserDetails = {
+                  id: userDoc.id,
+                  uid: userData.uid,
+                  name: userData.displayName || "User", // Display name or fallback
+                  photoURL: userData.photoURL,
+                  email: userData.email, // Added email
+                  role: userData.role,
+                  isOnline: userData.isOnline || false,
+                  lastSeen: userData.lastSeen ? (userData.lastSeen instanceof Timestamp ? userData.lastSeen.toDate() : undefined) : undefined,
+                };
+             } else {
+                 console.warn(`Other participant document ${userDoc.id} is missing uid or displayName.`);
+             }
+          } else {
+              console.warn(`Document for other participant ID ${otherParticipantId} not found.`);
           }
+        } else {
+             console.warn(`Could not find other participant ID in chat ${docSnap.id}. Participants:`, data.participants);
         }
+
+        // Ensure lastMessageTimestamp is valid
+        let lastMsgTs = new Date(); // Default fallback
+        if (data.lastMessageTimestamp instanceof Timestamp) {
+            lastMsgTs = data.lastMessageTimestamp.toDate();
+        } else if (data.lastMessageTimestamp) {
+             console.warn(`Chat ${docSnap.id} has non-Timestamp lastMessageTimestamp:`, data.lastMessageTimestamp);
+             try {
+                 lastMsgTs = new Date(data.lastMessageTimestamp);
+                 if (isNaN(lastMsgTs.getTime())) lastMsgTs = new Date(); // Invalid date conversion
+             } catch {
+                 lastMsgTs = new Date();
+             }
+        }
+
 
         return {
           id: docSnap.id,
           participants: data.participants,
           lastMessageText: data.lastMessageText || "",
-          lastMessageTimestamp: data.lastMessageTimestamp ? (data.lastMessageTimestamp as Timestamp).toDate() : new Date(),
+          lastMessageTimestamp: lastMsgTs,
           lastMessageSenderId: data.lastMessageSenderId,
           // Unread count: check if last message sender is not current user and current user hasn't read it
           unreadCount: (data.lastMessageSenderId !== currentUser.uid && !data[`${currentUser.uid}_isRead`]) ? 1 : 0,
@@ -123,7 +147,10 @@ export default function StudentChatPage() {
   useEffect(scrollToBottom, [messages]);
 
   const handleSelectConversation = async (conversation: ChatConversation) => {
-    if (!currentUser || !conversation.otherUser) return;
+    if (!currentUser || !conversation.otherUser || !conversation.id) {
+       console.warn("Cannot select conversation, missing user, otherUser, or conversation ID.", { currentUser, conversation });
+       return;
+    }
     setSelectedConversation(conversation);
     setOtherUser(conversation.otherUser); // Set the user being chatted with
     setIsLoadingMessages(true);
@@ -133,12 +160,21 @@ export default function StudentChatPage() {
 
     // Mark messages as read by the current user for this chat
     const chatDocRef = doc(db, "chats", conversation.id);
-    await setDoc(chatDocRef, { [`${currentUser.uid}_isRead`]: true }, { merge: true });
+     try {
+        await setDoc(chatDocRef, { [`${currentUser.uid}_isRead`]: true }, { merge: true });
+    } catch (error) {
+        console.error(`Failed to mark chat ${conversation.id} as read for user ${currentUser.uid}:`, error);
+    }
   };
 
   // Fetch initial messages for selected conversation
   useEffect(() => {
-    if (!selectedConversation || !currentUser) return;
+     if (!selectedConversation?.id || !currentUser) {
+        // Clear messages or do nothing if no conversation is selected
+        // setMessages([]); // Optionally clear
+        // setIsLoadingMessages(false); // Ensure loading is false if no conversation
+        return;
+    }
 
     // Reset message loading state only when conversation changes
     setIsLoadingMessages(true);
@@ -154,14 +190,20 @@ export default function StudentChatPage() {
 
     const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
       const fetchedMessages: ChatMessage[] = snapshot.docs
-        .map((doc) => {
-            const data = doc.data();
+        .map((docSnap) => {
+            const data = docSnap.data();
+            let timestamp = new Date(); // Fallback timestamp
+             if (data.timestamp instanceof Timestamp) {
+                timestamp = data.timestamp.toDate();
+            } else {
+                console.warn(`Message ${docSnap.id} in chat ${selectedConversation.id} has invalid or pending timestamp.`);
+            }
             return {
-                id: doc.id,
+                id: docSnap.id,
                 chatId: selectedConversation.id,
                 senderId: data.senderId,
                 text: data.text,
-                timestamp: (data.timestamp as Timestamp)?.toDate() || new Date(),
+                timestamp: timestamp,
                 isRead: data.isRead || false, // Consider adding isRead tracking per message
                 status: data.status || 'sent',
             } as ChatMessage;
@@ -169,7 +211,7 @@ export default function StudentChatPage() {
         .reverse(); // Reverse to show oldest first
 
       setMessages(fetchedMessages);
-      setLastVisibleMessage(snapshot.docs[snapshot.docs.length - 1]);
+      setLastVisibleMessage(snapshot.docs[snapshot.docs.length - 1] || null);
       setHasMoreMessages(snapshot.docs.length === PAGE_SIZE);
       setIsLoadingMessages(false);
       // No need to scroll here, useEffect [messages] handles it
@@ -183,7 +225,7 @@ export default function StudentChatPage() {
   }, [selectedConversation?.id, currentUser]); // Depend only on conversation ID and user
 
   const loadMoreMessages = async () => {
-    if (!selectedConversation || !lastVisibleMessage || !hasMoreMessages || isLoadingMessages) return;
+    if (!selectedConversation?.id || !lastVisibleMessage || !hasMoreMessages || isLoadingMessages) return;
     setIsLoadingMessages(true);
     const moreMessagesQuery = query(
       collection(db, "chats", selectedConversation.id, "messages"),
@@ -191,25 +233,39 @@ export default function StudentChatPage() {
       startAfter(lastVisibleMessage),
       limit(PAGE_SIZE)
     );
-    const snapshot = await getDocs(moreMessagesQuery);
-    const newMessages = snapshot.docs
-      .map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: (doc.data().timestamp as Timestamp).toDate(),
-      } as ChatMessage))
-      .reverse();
+    try {
+        const snapshot = await getDocs(moreMessagesQuery);
+        const newMessages = snapshot.docs
+        .map(docSnap => {
+             const data = docSnap.data();
+              let timestamp = new Date(); // Fallback timestamp
+             if (data.timestamp instanceof Timestamp) {
+                timestamp = data.timestamp.toDate();
+             } else {
+                console.warn(`Loaded message ${docSnap.id} has invalid timestamp.`);
+             }
+             return {
+                id: docSnap.id,
+                ...data,
+                timestamp: timestamp,
+            } as ChatMessage
+        })
+        .reverse();
 
-    setMessages(prev => [...newMessages, ...prev]); // Prepend older messages
-    setLastVisibleMessage(snapshot.docs[snapshot.docs.length - 1]);
-    setHasMoreMessages(snapshot.docs.length === PAGE_SIZE);
-    setIsLoadingMessages(false);
+        setMessages(prev => [...newMessages, ...prev]); // Prepend older messages
+        setLastVisibleMessage(snapshot.docs[snapshot.docs.length - 1] || null);
+        setHasMoreMessages(snapshot.docs.length === PAGE_SIZE);
+    } catch(error) {
+        console.error("Error loading more messages:", error);
+    } finally {
+        setIsLoadingMessages(false);
+    }
   };
 
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedConversation || !currentUser || !otherUser || isSending) return;
+    if (!newMessage.trim() || !selectedConversation?.id || !currentUser || !otherUser || isSending) return;
 
     setIsSending(true);
     const chatId = selectedConversation.id;
@@ -261,38 +317,44 @@ export default function StudentChatPage() {
 
   const ChatMessageItem = ({ msg }: { msg: ChatMessage }) => {
     const isMyMessage = msg.senderId === currentUser?.uid;
-    const sender = isMyMessage ? currentUser : otherUser; // Determine sender based on message
+    // Determine the sender's details. If it's my message, use currentUser, otherwise use otherUser.
+    const sender = isMyMessage ? currentUser : otherUser;
 
     return (
         <div className={cn("flex mb-3", isMyMessage ? "justify-end" : "justify-start")}>
+        {/* Show avatar for the other person's message */}
         {!isMyMessage && sender && (
             <Avatar className="h-8 w-8 mr-2 self-end">
-            <AvatarImage src={sender.photoURL || undefined} data-ai-hint="user avatar"/>
-            <AvatarFallback>{sender.name?.[0]?.toUpperCase()}</AvatarFallback>
+                <AvatarImage src={sender.photoURL || undefined} data-ai-hint="user avatar"/>
+                <AvatarFallback>{sender.name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
             </Avatar>
         )}
+        {/* Message Bubble */}
         <div
             className={cn(
-            "max-w-[70%] p-3 rounded-xl text-sm shadow-md",
-            isMyMessage
-                ? "bg-primary text-primary-foreground rounded-br-none"
-                : "bg-card text-card-foreground rounded-bl-none border"
+                "max-w-[70%] p-3 rounded-xl text-sm shadow-md",
+                isMyMessage
+                    ? "bg-primary text-primary-foreground rounded-br-none"
+                    : "bg-card text-card-foreground rounded-bl-none border"
             )}
         >
             <p>{msg.text}</p>
             <div className={cn("text-xs mt-1.5 flex items-center", isMyMessage ? "text-primary-foreground/70 justify-end" : "text-muted-foreground/80 justify-start")}>
-            {format(msg.timestamp, "HH:mm")}
-            {isMyMessage && msg.status && (
-                msg.status === 'read' ? <CheckCheck className="ml-1.5 h-4 w-4 text-blue-300" /> :
-                msg.status === 'delivered' ? <CheckCheck className="ml-1.5 h-4 w-4" /> :
-                <Check className="ml-1.5 h-4 w-4" />
-            )}
+                {/* Format timestamp only if it's a valid Date */}
+                 {msg.timestamp instanceof Date && !isNaN(msg.timestamp.getTime()) ? format(msg.timestamp, "HH:mm") : "..."}
+                {/* Show status indicators for my messages */}
+                {isMyMessage && msg.status && (
+                    msg.status === 'read' ? <CheckCheck className="ml-1.5 h-4 w-4 text-blue-300" /> :
+                    msg.status === 'delivered' ? <CheckCheck className="ml-1.5 h-4 w-4" /> :
+                    <Check className="ml-1.5 h-4 w-4" />
+                )}
             </div>
         </div>
+        {/* Show avatar for my message */}
         {isMyMessage && sender && (
             <Avatar className="h-8 w-8 ml-2 self-end">
-            <AvatarImage src={sender.photoURL || undefined} data-ai-hint="user avatar"/>
-            <AvatarFallback>{sender.name?.[0]?.toUpperCase()}</AvatarFallback>
+                <AvatarImage src={sender.photoURL || undefined} data-ai-hint="user avatar"/>
+                <AvatarFallback>{sender.name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
             </Avatar>
         )}
         </div>
@@ -301,8 +363,8 @@ export default function StudentChatPage() {
 
 
   return (
-    // Match admin chat layout structure for consistency
-    <div className="flex h-[calc(100vh-var(--student-header-height,5rem))] bg-background"> {/* Adjust height based on actual header */}
+    // Use explicit height calculation matching the student dashboard layout
+    <div className="flex h-[calc(100vh-5rem)] bg-background"> {/* Assuming student header height is 5rem */}
       {/* Left Panel: Conversation List */}
       <div className="w-1/4 min-w-[300px] max-w-[380px] border-r border-border flex flex-col bg-card">
         <div className="p-4 border-b border-border">
@@ -347,7 +409,12 @@ export default function StudentChatPage() {
                     </p>
                   </div>
                   <div className="text-xs text-muted-foreground/80 flex flex-col items-end ml-2 space-y-1">
-                    <span>{formatDistanceToNowStrict(conv.lastMessageTimestamp, { addSuffix: false })}</span>
+                    {/* Format timestamp only if it's a valid Date */}
+                    <span>
+                        {conv.lastMessageTimestamp instanceof Date && !isNaN(conv.lastMessageTimestamp.getTime())
+                        ? formatDistanceToNowStrict(conv.lastMessageTimestamp, { addSuffix: false })
+                        : '...'}
+                    </span>
                     {conv.unreadCount && conv.unreadCount > 0 && (
                          <span className="bg-primary text-primary-foreground text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">{conv.unreadCount}</span>
                     )}
@@ -374,7 +441,7 @@ export default function StudentChatPage() {
                   <h3 className="font-semibold text-foreground">{otherUser.name}</h3>
                    {/* Display role or online status */}
                    <p className="text-xs text-muted-foreground capitalize">
-                      {otherUser.role || (otherUser.isOnline ? "Online" : (otherUser.lastSeen ? `Last seen ${formatDistanceToNowStrict(otherUser.lastSeen, {addSuffix: true})}` : "Offline"))}
+                      {otherUser.role || (otherUser.isOnline ? "Online" : (otherUser.lastSeen instanceof Date && !isNaN(otherUser.lastSeen.getTime()) ? `Last seen ${formatDistanceToNowStrict(otherUser.lastSeen, {addSuffix: true})}` : "Offline"))}
                    </p>
                 </div>
               </div>
@@ -387,8 +454,8 @@ export default function StudentChatPage() {
                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary"><MoreVertical className="h-5 w-5"/></Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View Info</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">Clear Chat</DropdownMenuItem>
+                        <DropdownMenuItem disabled>View Info</DropdownMenuItem>
+                        <DropdownMenuItem disabled className="text-destructive">Clear Chat</DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -396,17 +463,20 @@ export default function StudentChatPage() {
 
             {/* Messages Area */}
             <ScrollArea className="flex-grow p-4 space-y-4" id="message-scroll-area">
+               {/* Button to load older messages */}
+               {!isLoadingMessages && hasMoreMessages && messages.length >= PAGE_SIZE && (
+                <div className="text-center mb-4">
+                    <Button variant="outline" size="sm" onClick={loadMoreMessages} disabled={isLoadingMessages}>Load older messages</Button>
+                </div>
+               )}
+               {/* Initial Loading Indicator */}
               {isLoadingMessages && messages.length === 0 && (
                  <div className="p-4 space-y-3 flex flex-col items-center">
                      <Loader2 className="h-8 w-8 animate-spin text-primary mb-4"/>
                      <p className="text-muted-foreground text-sm">Loading messages...</p>
                 </div>
               )}
-              {!isLoadingMessages && hasMoreMessages && messages.length >= PAGE_SIZE && (
-                <div className="text-center">
-                    <Button variant="outline" size="sm" onClick={loadMoreMessages} disabled={isLoadingMessages}>Load older messages</Button>
-                </div>
-              )}
+
               {messages.map((msg) => (
                 <ChatMessageItem key={msg.id} msg={msg} />
               ))}

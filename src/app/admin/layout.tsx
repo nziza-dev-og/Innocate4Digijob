@@ -18,14 +18,13 @@ export default function AdminLayout({
 }) {
   return (
     <ProtectedRoute adminOnly={true}>
-      {/* Sidebar is collapsible by icon by default in new AdminSidebar */}
-      <SidebarProvider defaultOpen={true}> 
+      <SidebarProvider defaultOpen={true}>
           <AdminSidebar />
-          {/* Main content area will have its background set by the page or a wrapper inside children */}
-          <SidebarInset className="bg-transparent flex flex-col"> {/* Changed to transparent to let page control bg, added flex flex-col */}
-              <AdminHeader /> {/* Contains mobile trigger and global user actions */}
-              {/* The main content area needs to fill remaining space if chat page is to be full height */}
-              <main className="flex-1 overflow-y-auto" style={{ '--admin-header-height': '4rem' } as React.CSSProperties}> {/* Removed p-6 and bg-secondary/50, page will handle it */}
+          {/* Ensure SidebarInset takes full height and main content area scrolls */}
+          <SidebarInset className="bg-secondary/30 flex flex-col h-screen overflow-hidden"> {/* Added h-screen and overflow-hidden */}
+              <AdminHeader /> {/* Header takes its own height */}
+              {/* Main content area should fill remaining space and allow internal scrolling */}
+              <main className="flex-1 overflow-y-auto"> {/* Removed custom style, rely on flex-1 and overflow */}
                   {children}
               </main>
           </SidebarInset>
