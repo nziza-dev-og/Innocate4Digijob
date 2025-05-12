@@ -22,9 +22,10 @@ export default function AdminLayout({
       <SidebarProvider defaultOpen={true}> 
           <AdminSidebar />
           {/* Main content area will have its background set by the page or a wrapper inside children */}
-          <SidebarInset className="bg-transparent"> {/* Changed to transparent to let page control bg */}
+          <SidebarInset className="bg-transparent flex flex-col"> {/* Changed to transparent to let page control bg, added flex flex-col */}
               <AdminHeader /> {/* Contains mobile trigger and global user actions */}
-              <main className="flex-1"> {/* Removed p-6 and bg-secondary/50, page will handle it */}
+              {/* The main content area needs to fill remaining space if chat page is to be full height */}
+              <main className="flex-1 overflow-y-auto" style={{ '--admin-header-height': '4rem' } as React.CSSProperties}> {/* Removed p-6 and bg-secondary/50, page will handle it */}
                   {children}
               </main>
           </SidebarInset>
