@@ -17,31 +17,30 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  LayoutDashboard, // Dashboard
-  MessageSquare, // Chat
-  Users, // Student
-  UserCheck, // Teacher (using UserCheck as stand-in)
-  CalendarDays, // Event
-  DollarSign, // Finance
-  ChefHat, // Food (using ChefHat as stand-in)
+  LayoutDashboard, 
+  MessageSquare, 
+  Users, 
+  UserCheck, 
+  CalendarDays, 
+  DollarSign, 
+  ChefHat, // Using Lucide's ChefHat
   Settings,
   ChevronDown,
   LogOut,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth-hook";
 
-// Define main navigation links based on the image
+// Updated main navigation links
 const mainMenuLinks = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, exactMatch: false }, // Dashboard is the events page now.
-  { href: "/admin/chat", label: "Chat", icon: MessageSquare, disabled: true },
-  { href: "/admin/students", label: "Student", icon: Users, badge: "35", disabled: true },
-  { href: "/admin/teachers", label: "Teacher", icon: UserCheck, disabled: true },
-  { href: "/admin/events", label: "Event", icon: CalendarDays, exactMatch: true }, // Explicitly mark this for active state on /admin/dashboard
+  { href: "/admin/dashboard", label: "Events Dashboard", icon: LayoutDashboard, exactMatch: true }, // Dashboard is the events page.
+  { href: "/admin/chat", label: "Chat", icon: MessageSquare },
+  { href: "/admin/users", label: "Users (Students/Teachers)", icon: Users }, // Unified user management
+  // { href: "/admin/teachers", label: "Teacher", icon: UserCheck }, // Keep separate if distinct teacher functionality is planned
 ];
 
 const otherMenuLinks = [
-    { href: "/admin/finance", label: "Finance", icon: DollarSign, disabled: true },
-    { href: "/admin/food", label: "Food", icon: ChefHat, badge: "1", disabled: true },
+    { href: "/admin/finance", label: "Finance", icon: DollarSign },
+    { href: "/admin/food", label: "Food", icon: ChefHat, badge: "New" }, // Example badge
     { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
@@ -52,9 +51,10 @@ export function AdminSidebar() {
   const { user, signOut, loading } = useAuth();
 
   const isActive = (href: string, exactMatch: boolean = false) => {
-    if (href === "/admin/events" && pathname === "/admin/dashboard") return true; // Special case for Event mapping to dashboard
     if (exactMatch) return pathname === href;
-    return pathname.startsWith(href);
+    // Special case for dashboard as it might be /admin or /admin/dashboard
+    if (href === "/admin/dashboard" && (pathname === "/admin" || pathname === "/admin/dashboard")) return true;
+    return pathname.startsWith(href) && href !== "/admin/dashboard"; // Avoids matching /admin/dashboard for other /admin/* links
   };
 
   return (
@@ -66,7 +66,7 @@ export function AdminSidebar() {
           </div>
           <div className="group-data-[collapsible=icon]:hidden">
             <p className="font-bold text-lg text-sidebar-primary">AdminSchool</p>
-            <p className="text-xs text-sidebar-foreground/70">School Admission Dashboard</p>
+            <p className="text-xs text-sidebar-foreground/70">School Admin Panel</p>
           </div>
         </Link>
       </SidebarHeader>
@@ -76,16 +76,14 @@ export function AdminSidebar() {
              <div className="p-2 mb-2 border-b border-sidebar-border/30 group-data-[collapsible=icon]:hidden">
                 <div className="flex items-center gap-3 p-2 rounded-md bg-sidebar-primary/10">
                     <Avatar className="h-10 w-10">
-                        <AvatarImage src={user.photoURL || "https://picsum.photos/seed/admin-user/40/40"} alt={user.displayName || "Zack Foster"} data-ai-hint="admin avatar"/>
-                        <AvatarFallback>{user.displayName?.[0] || 'Z'}</AvatarFallback>
+                        <AvatarImage src={user.photoURL || "https://picsum.photos/seed/admin-user/40/40"} alt={user.displayName || "Admin User"} data-ai-hint="admin avatar"/>
+                        <AvatarFallback>{user.displayName?.[0].toUpperCase() || 'A'}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-sidebar-primary truncate">{user.displayName || "Zack Foster"}</p>
-                        <p className="text-xs text-sidebar-foreground/70">Super Admin</p> 
+                        <p className="text-sm font-semibold text-sidebar-primary truncate">{user.displayName || "Admin User"}</p>
+                        <p className="text-xs text-sidebar-foreground/70">{user.role === "admin" ? "Super Admin" : "Admin"}</p> 
                     </div>
-                    <Button variant="ghost" size="icon" className="text-sidebar-foreground/70 hover:text-sidebar-primary">
-                        <ChevronDown className="h-4 w-4" />
-                    </Button>
+                    {/* Dropdown for user profile/quick actions could go here */}
                 </div>
             </div>
         )}
@@ -101,14 +99,12 @@ export function AdminSidebar() {
                 isActive={isActive(link.href, link.exactMatch)}
                 onClick={() => setOpenMobile(false)}
                 tooltip={{ children: link.label, side: "right", align: "center" }}
-                disabled={link.disabled}
                 className={`
                   justify-start rounded-md
-                  ${link.disabled ? "cursor-not-allowed opacity-50" : ""}
                   ${isActive(link.href, link.exactMatch) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "hover:bg-sidebar-accent/20 hover:text-sidebar-primary"}
                 `}
               >
-                <Link href={link.disabled ? "#" : link.href}>
+                <Link href={link.href}>
                   <link.icon className={`h-5 w-5 ${isActive(link.href, link.exactMatch) ? 'text-sidebar-accent-foreground' : 'text-sidebar-primary/80'}`}/>
                   <span className="group-data-[collapsible=icon]:hidden">{link.label}</span>
                   {link.badge && <Badge variant="secondary" className="ml-auto group-data-[collapsible=icon]:hidden bg-sidebar-foreground/20 text-sidebar-foreground/80">{link.badge}</Badge>}
@@ -129,17 +125,15 @@ export function AdminSidebar() {
                 isActive={isActive(link.href)}
                 onClick={() => setOpenMobile(false)}
                 tooltip={{ children: link.label, side: "right", align: "center" }}
-                disabled={link.disabled}
                 className={`
                     justify-start rounded-md
-                    ${link.disabled ? "cursor-not-allowed opacity-50" : ""}
                     ${isActive(link.href) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "hover:bg-sidebar-accent/20 hover:text-sidebar-primary"}
                 `}
               >
-                <Link href={link.disabled ? "#" : link.href}>
+                <Link href={link.href}>
                   <link.icon className={`h-5 w-5 ${isActive(link.href) ? 'text-sidebar-accent-foreground' : 'text-sidebar-primary/80'}`}/>
                   <span className="group-data-[collapsible=icon]:hidden">{link.label}</span>
-                   {link.badge && <Badge variant="secondary" className="ml-auto group-data-[collapsible=icon]:hidden bg-red-500 text-white px-1.5 text-[10px] h-4 w-4 flex items-center justify-center">{link.badge}</Badge>}
+                   {link.badge && <Badge className="ml-auto group-data-[collapsible=icon]:hidden bg-accent text-accent-foreground px-1.5 text-[10px] h-4">{link.badge}</Badge>}
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -164,4 +158,3 @@ export function AdminSidebar() {
     </Sidebar>
   );
 }
-

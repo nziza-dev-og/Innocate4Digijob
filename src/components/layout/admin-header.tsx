@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -12,9 +11,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Settings, User, LogOut, Bell } from "lucide-react"; 
+import { Settings, User, LogOut, Bell, ChevronDown, Users as UsersIcon, Search as SearchIcon } from "lucide-react"; 
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/use-auth-hook";
+import { Input } from "@/components/ui/input"; // For search bar
 // import { useTheme } from "next-themes"; // If theme toggle is implemented
 
 export function AdminHeader() {
@@ -27,26 +27,38 @@ export function AdminHeader() {
         <SidebarTrigger />
       </div>
       
-      {/* Dynamic page title can be passed as a prop or managed by a context if needed elsewhere */}
-      {/* For now, the title "Events" will be part of the dashboard page itself */}
+      {/* Search bar - non-functional placeholder */}
+      <div className="relative hidden md:block flex-1 max-w-xs">
+        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input type="search" placeholder="Search here..." className="pl-9 h-9 rounded-full bg-muted/50 border-transparent focus:bg-background focus:border-primary" disabled />
+      </div>
 
       <div className="ml-auto flex items-center gap-2 md:gap-4">
-        {/* Theme Toggle Example - uncomment if next-themes is set up */}
-        {/* 
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-        >
-          {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-          <span className="sr-only">Toggle theme</span>
+        {/* Language Dropdown - non-functional placeholder */}
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="h-9 rounded-full text-xs px-3 hidden sm:flex">
+                    ENGLISH <ChevronDown className="ml-1 h-3 w-3"/>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuItem>English (Selected)</DropdownMenuItem>
+                <DropdownMenuItem disabled>Français (Soon)</DropdownMenuItem>
+                <DropdownMenuItem disabled>Kinyarwanda (Soon)</DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* New Teachers Button */}
+        <Button asChild className="h-9 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs px-4 hidden sm:flex">
+            <Link href="/admin/users">
+                <UsersIcon className="mr-2 h-4 w-4" /> New Teachers
+            </Link>
         </Button>
-        */}
         
-        <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full">
+        <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full text-muted-foreground hover:bg-muted/50">
           <Bell className="h-5 w-5" />
           <span className="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold leading-none text-destructive-foreground bg-destructive rounded-full transform translate-x-1/2 -translate-y-1/2">
-            3 {/* Example notification count */}
+            1 {/* Example notification count */}
           </span>
           <span className="sr-only">Notifications</span>
         </Button>
@@ -84,7 +96,8 @@ export function AdminHeader() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="#"> {/* Actual profile page to be created */}
+                 {/* Link to /dashboard/settings for student, /admin/settings for admin */}
+                <Link href={user.role === 'admin' ? "/admin/settings" : "/dashboard/settings"}>
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </Link>
