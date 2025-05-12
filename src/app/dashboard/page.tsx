@@ -85,7 +85,7 @@ export default function UserDashboardPage() {
   // Fetch all relevant events for the student/public
   useEffect(() => {
     const fetchStudentEvents = async () => {
-      if (!user) return;
+      // No need to check for user here, getEvents handles visibility based on adminOnly flag
       setIsLoadingSchedule(true);
       try {
         // Fetch events accessible to students ('student' or 'public' audience)
@@ -98,13 +98,8 @@ export default function UserDashboardPage() {
         setIsLoadingSchedule(false);
       }
     };
-
-    if (user) {
-      fetchStudentEvents();
-    } else {
-      setIsLoadingSchedule(false);
-    }
-  }, [user, toast]);
+     fetchStudentEvents(); // Fetch events regardless of login state for public visibility
+  }, [toast]); // Removed user dependency, events might be public
 
   // Filter events based on the selected date using useMemo
   const eventsForSelectedDate = useMemo(() => {
