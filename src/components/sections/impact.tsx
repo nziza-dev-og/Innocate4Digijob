@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Rocket, CheckCircle, Quote } from 'lucide-react';
-import { TestimonialGenerator } from '@/components/ai/testimonial-generator';
+// import { TestimonialGenerator } from '@/components/ai/testimonial-generator'; // Removed AI component import
 
 const stats = [
   { icon: Users, value: "100+", label: "Students Trained" },
@@ -63,7 +63,8 @@ export function Impact() {
           ))}
         </div>
         
-        <TestimonialGenerator />
+        {/* Removed TestimonialGenerator component */}
+        {/* <TestimonialGenerator /> */}
       </div>
     </section>
   );

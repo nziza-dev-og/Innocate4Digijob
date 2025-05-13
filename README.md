@@ -20,15 +20,11 @@ This project relies on environment variables for Firebase configuration and othe
 
     # Add other secrets like the admin code
     NEXT_PUBLIC_ADMIN_SECRET_CODE=YOUR_ADMIN_SECRET_CODE
-
-    # Genkit Google AI API Key (Needed for AI features)
-    # Get your API key from Google AI Studio: https://aistudio.google.com/app/apikey
-    GOOGLE_API_KEY=YOUR_GOOGLE_AI_API_KEY
     ```
 3.  **Deployment Environment Variables (IMPORTANT):**
     *   When deploying to platforms like Vercel, Netlify, or others, you **MUST** configure these same environment variables in your project settings on that platform.
-    *   **For Vercel:** Go to your Project Settings -> Environment Variables and add each `NEXT_PUBLIC_...` variable and `GOOGLE_API_KEY` with their corresponding values from your `.env` file.
-    *   **Failure to set these variables in your deployment environment will cause build errors (like `auth/invalid-api-key`) or runtime errors for Firebase and AI features.**
+    *   **For Vercel:** Go to your Project Settings -> Environment Variables and add each `NEXT_PUBLIC_...` variable with their corresponding values from your `.env` file.
+    *   **Failure to set these variables in your deployment environment will cause build errors (like `auth/invalid-api-key`) or runtime errors for Firebase.**
 
 ## Running Locally
 
@@ -46,3 +42,17 @@ npm run build
 
 This command builds the application for production usage. Ensure your environment variables are correctly set up before building.
 
+## Configuration Error Component (`src/components/config-error.tsx`)
+
+This component displays a user-friendly error message when critical Firebase environment variables are missing. It checks for these variables on the client-side and renders an informative message instead of crashing the app.
+
+**How it works:**
+- The component checks if all `NEXT_PUBLIC_FIREBASE_...` variables are present in `process.env`.
+- If any are missing, it displays an error overlay with instructions.
+- It prevents the main application content (`children`) from rendering if there's a configuration error.
+
+**Usage:**
+The component wraps the main application layout in `src/app/layout.tsx`.
+
+**To resolve the error:**
+Follow the instructions in the "Environment Variables" section above to set up your `.env` file correctly, both locally and in your deployment environment.
