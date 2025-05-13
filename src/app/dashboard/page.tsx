@@ -10,13 +10,14 @@ import Image from "next/image";
 import { Calendar } from "@/components/ui/calendar";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { ArrowRight, BookOpen, Briefcase, CalendarCheck, DollarSign, PlusCircle, UserCircle2, Users, Video, Clock, Loader2, Info, CheckCircle } from "lucide-react";
+import { ArrowRight, BookOpen, Briefcase, CalendarCheck, DollarSign, PlusCircle, UserCircle2, Users, Video, Clock, Loader2, Info, CheckCircle, Eye } from "lucide-react"; // Added Eye
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getEvents } from "@/lib/firebase/firestore";
 import type { SchoolEvent } from "@/types/event";
 import { format, isSameDay } from "date-fns"; 
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EventDetailDialog } from "@/components/event-detail-dialog"; // Import the detail dialog
 
 interface UserData {
   displayName: string;
@@ -68,6 +69,10 @@ export default function UserDashboardPage() {
   const [allEvents, setAllEvents] = useState<SchoolEvent[]>([]); 
   const [isLoadingSchedule, setIsLoadingSchedule] = useState(true);
 
+   // State for showing event details
+  const [selectedEventDetails, setSelectedEventDetails] = useState<SchoolEvent | null>(null);
+  const [showEventDetailsDialog, setShowEventDetailsDialog] = useState(false);
+
 
   useEffect(() => {
     if (user && !authLoading) {
@@ -107,6 +112,11 @@ export default function UserDashboardPage() {
       .filter(event => isSameDay(event.date, selectedDate))
       .sort((a, b) => new Date(`1970/01/01 ${a.time}`).getTime() - new Date(`1970/01/01 ${b.time}`).getTime()); 
   }, [selectedDate, allEvents]);
+
+  const openViewEventDialog = (event: SchoolEvent) => {
+    setSelectedEventDetails(event);
+    setShowEventDetailsDialog(true);
+  };
 
 
   if (authLoading || isLoading) {
@@ -167,8 +177,8 @@ export default function UserDashboardPage() {
             <Card className="shadow-md">
               <CardContent className="p-4 flex flex-col items-center text-center">
                 <Avatar className="w-16 h-16 mb-3 ring-2 ring-offset-2 ring-pink-400">
-                    <AvatarImage src="https://picsum.photos/seed/fav-student/100/100" data-ai-hint="student avatar" />
-                    <AvatarFallback>AL</AvatarFallback>
+                    <AvatarImage src={user.photoURL || "https://picsum.photos/seed/fav-student/100/100"} data-ai-hint="student avatar" />
+                    <AvatarFallback>{user.displayName?.[0].toUpperCase() || 'U'}</AvatarFallback>
                 </Avatar>
                 <p className="text-xs text-muted-foreground">Next Event</p>
                 <p className="text-lg font-semibold text-foreground">
@@ -240,13 +250,13 @@ export default function UserDashboardPage() {
                         day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
                         day_today: "bg-accent/20 text-accent-foreground",
                     }}
-                    // Add modifiers for days with events if desired
-                    // modifiers={{ 
-                    //   hasEvent: allEvents.map(e => e.date) 
-                    // }}
-                    // modifiersClassNames={{
-                    //   hasEvent: 'bg-blue-100 dark:bg-blue-800 rounded-full'
-                    // }}
+                    // Example: Add dot indicators for days with events
+                    modifiers={{ 
+                       hasEvent: allEvents.map(e => e.date) 
+                    }}
+                    modifiersClassNames={{
+                       hasEvent: 'relative after:content-[""] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:rounded-full after:bg-primary'
+                    }}
                 />
             </CardContent>
           </Card>
@@ -277,7 +287,11 @@ export default function UserDashboardPage() {
                     const iconBg = eventIconBgMap[event.description || 'default'] || eventIconBgMap.default;
                     const iconColor = eventIconColorMap[event.description || 'default'] || eventIconColorMap.default;
                     return (
-                        <div key={event.id} className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg">
+                        <div 
+                           key={event.id} 
+                           className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg hover:bg-secondary/50 cursor-pointer group relative" 
+                           onClick={() => openViewEventDialog(event)}
+                        >
                             <div className={`p-2 rounded-full ${iconBg}`}>
                                 <Icon className={`h-5 w-5 ${iconColor}`} />
                             </div>
@@ -287,6 +301,10 @@ export default function UserDashboardPage() {
                                     <Clock className="inline h-3 w-3 mr-1" /> {format(event.date, "MMM d")} @ {event.time} - {event.description || "Event"}
                                 </p>
                             </div>
+                            <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary" title="View Details">
+                                <Eye className="h-4 w-4" />
+                                <span className="sr-only">View Details</span>
+                            </Button>
                         </div>
                     );
                 })
@@ -295,6 +313,13 @@ export default function UserDashboardPage() {
           </Card>
         </div>
       </div>
+      
+      {/* Event Detail Dialog */}
+      <EventDetailDialog
+        event={selectedEventDetails}
+        isOpen={showEventDetailsDialog}
+        onOpenChange={setShowEventDetailsDialog}
+      />
     </div>
   );
 }

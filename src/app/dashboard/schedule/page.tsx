@@ -3,27 +3,56 @@
 
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useState } from "react";
-import { CalendarDays, Clock, Info } from "lucide-react"; // Added Info icon
-import { format } from "date-fns";
+import { useState, useEffect, useMemo } from "react";
+import { CalendarDays, Clock, Info, Eye } from "lucide-react"; // Added Info and Eye icons
+import { format, isSameDay } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
-// Assuming SchoolEvent type is defined elsewhere
-// import { SchoolEvent } from "@/types/event"; 
-
-// Placeholder data - replace with actual data fetching
-const isLoadingSchedule = false; // Set to true when fetching data
-const scheduleEvents: any[] = [ // Replace 'any' with SchoolEvent[] when type is available
-    { id: 'evt1', title: 'Multimedia Class Introduction', date: new Date(2024, 6, 25), time: '09:00', description: 'Room 101' },
-    { id: 'evt2', title: 'Project Brainstorming Session', date: new Date(2024, 6, 25), time: '11:00', description: 'Innovation Lab' },
-    { id: 'evt3', title: 'DKV Workshop', date: new Date(2024, 6, 27), time: '14:00', description: 'Online' },
-];
+import { getEvents } from "@/lib/firebase/firestore";
+import { SchoolEvent } from "@/types/event"; 
+import { useToast } from "@/hooks/use-toast";
+import { EventDetailDialog } from "@/components/event-detail-dialog"; // Import detail dialog
+import { Button } from "@/components/ui/button"; // Import Button
 
 export default function StudentSchedulePage() {
+    const { toast } = useToast();
     const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+    const [allEvents, setAllEvents] = useState<SchoolEvent[]>([]); 
+    const [isLoadingSchedule, setIsLoadingSchedule] = useState(true);
 
-    const eventsForSelectedDate = scheduleEvents.filter(event => 
-        selectedDate && format(event.date, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')
-    ).sort((a,b) => new Date(`1970/01/01 ${a.time}`).getTime() - new Date(`1970/01/01 ${b.time}`).getTime());
+    // State for showing event details
+    const [selectedEventDetails, setSelectedEventDetails] = useState<SchoolEvent | null>(null);
+    const [showEventDetailsDialog, setShowEventDetailsDialog] = useState(false);
+
+    // Fetch all relevant events for the student/public
+    useEffect(() => {
+        const fetchStudentEvents = async () => {
+        setIsLoadingSchedule(true);
+        try {
+            // Fetch events accessible to students ('student' or 'public' audience)
+            const fetchedEvents = await getEvents(false); // false -> not admin only
+            setAllEvents(fetchedEvents);
+        } catch (error) {
+            console.error("Error fetching schedule events:", error);
+            toast({ title: "Error", description: "Could not fetch schedule.", variant: "destructive" });
+        } finally {
+            setIsLoadingSchedule(false);
+        }
+        };
+        fetchStudentEvents(); 
+    }, [toast]); 
+
+    // Filter events based on the selected date using useMemo
+    const eventsForSelectedDate = useMemo(() => {
+        if (!selectedDate || !allEvents) return [];
+        return allEvents
+        .filter(event => isSameDay(event.date, selectedDate))
+        .sort((a, b) => new Date(`1970/01/01 ${a.time}`).getTime() - new Date(`1970/01/01 ${b.time}`).getTime()); 
+    }, [selectedDate, allEvents]);
+
+    const openViewEventDialog = (event: SchoolEvent) => {
+        setSelectedEventDetails(event);
+        setShowEventDetailsDialog(true);
+    };
 
     return (
         <div className="container mx-auto py-8">
@@ -53,6 +82,12 @@ export default function StudentSchedulePage() {
                                 day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
                                 day_today: "bg-accent/20 text-accent-foreground",
                             }}
+                            modifiers={{ 
+                                hasEvent: allEvents.map(e => e.date) 
+                             }}
+                             modifiersClassNames={{
+                                hasEvent: 'relative after:content-[""] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:w-1 after:h-1 after:rounded-full after:bg-primary'
+                             }}
                         />
                         </CardContent>
                     </Card>
@@ -69,28 +104,42 @@ export default function StudentSchedulePage() {
                                  eventsForSelectedDate.length > 0 ? `You have ${eventsForSelectedDate.length} event(s) scheduled.` : "No events scheduled for this day."}
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4 max-h-[60vh] overflow-y-auto">
+                        <CardContent className="space-y-4 max-h-[60vh] overflow-y-auto p-4"> {/* Added padding */}
                            {isLoadingSchedule ? (
-                                <div className="space-y-3 p-3">
-                                    <Skeleton className="h-16 w-full rounded-lg" />
-                                    <Skeleton className="h-16 w-full rounded-lg" />
+                                <div className="space-y-3">
+                                    <Skeleton className="h-20 w-full rounded-lg" />
+                                    <Skeleton className="h-20 w-full rounded-lg" />
                                 </div>
                            ) : eventsForSelectedDate.length === 0 ? (
-                               <div className="p-6 text-center text-muted-foreground">
+                               <div className="p-6 text-center text-muted-foreground flex flex-col items-center justify-center min-h-[200px]">
                                     <Info className="mx-auto h-10 w-10 mb-2 text-primary/50" />
                                     <p>No events scheduled for this day.</p>
                                 </div>
                            ) : (
                                 eventsForSelectedDate.map(event => (
-                                    <div key={event.id} className="flex items-start gap-4 p-4 border rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
+                                    <div 
+                                       key={event.id} 
+                                       className="flex items-start gap-4 p-4 border rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors cursor-pointer group relative"
+                                       onClick={() => openViewEventDialog(event)}
+                                    >
                                         <div className="p-2 bg-primary/10 rounded-full mt-1">
                                             <Clock className="h-5 w-5 text-primary" />
                                         </div>
                                         <div>
                                             <p className="font-semibold text-foreground">{event.title}</p>
                                             <p className="text-sm text-muted-foreground">Time: {event.time}</p>
-                                            {event.description && <p className="text-sm text-muted-foreground">Details: {event.description}</p>}
+                                            {event.description && <p className="text-sm text-muted-foreground truncate" title={event.description}>Details: {event.description}</p>}
+                                            {/* Display price if available */}
+                                            {event.price !== undefined && (
+                                                <p className={`text-sm font-semibold ${event.price === 0 ? 'text-green-600' : 'text-primary'}`}>
+                                                    {event.price === 0 ? 'Free' : `$${event.price.toFixed(2)}`}
+                                                </p>
+                                            )}
                                         </div>
+                                        <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary" title="View Details">
+                                            <Eye className="h-4 w-4" />
+                                            <span className="sr-only">View Details</span>
+                                        </Button>
                                     </div>
                                 ))
                            )}
@@ -98,6 +147,12 @@ export default function StudentSchedulePage() {
                     </Card>
                 </div>
             </div>
+             {/* Event Detail Dialog */}
+            <EventDetailDialog
+                event={selectedEventDetails}
+                isOpen={showEventDetailsDialog}
+                onOpenChange={setShowEventDetailsDialog}
+            />
         </div>
     );
 }

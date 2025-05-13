@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { 
-    ChevronLeft, ChevronRight, Search, Bell, MessageSquare, UserCircle, Users, MoreVertical, Calendar as CalendarIcon, ChevronDown, PlusCircle, Trash2, Edit3, Info, Clock
+    ChevronLeft, ChevronRight, Search, Bell, MessageSquare, UserCircle, Users, MoreVertical, Calendar as CalendarIcon, ChevronDown, PlusCircle, Trash2, Edit3, Info, Clock, Eye // Added Eye icon
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { format, addMonths, subMonths, getDaysInMonth, startOfMonth, getDay, eachDayOfInterval, endOfMonth, isSameDay, isSameMonth } from "date-fns";
@@ -28,8 +28,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  // AlertDialogTrigger, // No longer needed here directly for the trigger button if it's manually controlled
 } from "@/components/ui/alert-dialog";
+import { EventDetailDialog } from "@/components/event-detail-dialog"; // Import the detail dialog
 
 export default function AdminDashboardPage() {
   const { user, loading: authLoading } = useAuth();
@@ -43,6 +43,9 @@ export default function AdminDashboardPage() {
   const [eventToEdit, setEventToEdit] = useState<SchoolEvent | null>(null);
   const [eventToDelete, setEventToDelete] = useState<SchoolEvent | null>(null);
 
+  // State for showing event details
+  const [selectedEventDetails, setSelectedEventDetails] = useState<SchoolEvent | null>(null);
+  const [showEventDetailsDialog, setShowEventDetailsDialog] = useState(false);
 
   const fetchAdminEvents = async () => {
     if (!user && !authLoading) {
@@ -80,7 +83,9 @@ export default function AdminDashboardPage() {
     const startingDayOffset = (firstDayOfMonthWeekday === 0) ? 6 : firstDayOfMonthWeekday - 1; 
     
     const gridDays = Array(startingDayOffset).fill(null).concat(days);
-    const remainingCells = (5 * 7) - gridDays.length; // Assuming 5 rows for simplicity, can be 6
+    // Calculate remaining cells needed to fill the grid (e.g., 6 rows * 7 cols = 42)
+    const totalGridCells = Math.ceil(gridDays.length / 7) * 7; // Ensures full rows
+    const remainingCells = totalGridCells - gridDays.length; 
     return gridDays.concat(Array(Math.max(0,remainingCells)).fill(null));
   }, [currentMonth]);
 
@@ -105,6 +110,11 @@ export default function AdminDashboardPage() {
   const openEditEventDialog = (event: SchoolEvent) => {
     setEventToEdit(event);
     setShowAddEventDialog(true);
+  };
+
+  const openViewEventDialog = (event: SchoolEvent) => {
+    setSelectedEventDetails(event);
+    setShowEventDetailsDialog(true);
   };
   
   const handleConfirmDelete = async () => {
@@ -177,13 +187,13 @@ export default function AdminDashboardPage() {
                 {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => <div key={day}>{day}</div>)}
             </div>
             {isLoadingEvents ? (
-                 <div className="grid grid-cols-7 grid-rows-5 gap-1 h-[calc(100%-2rem-0.5rem)]">
-                    {Array.from({length: 35}).map((_, i) => <div key={i} className="bg-muted/30 rounded-md animate-pulse min-h-[80px]"></div>)}
+                 <div className="grid grid-cols-7 auto-rows-auto gap-1 h-[calc(100%-2rem-0.5rem)]">
+                    {Array.from({length: daysInMonthGrid.length}).map((_, i) => <div key={i} className="bg-muted/30 rounded-md animate-pulse min-h-[80px]"></div>)}
                 </div>
             ) : (
-                <div className="grid grid-cols-7 grid-rows-5 gap-1 h-[calc(100%-2rem-0.5rem)]">
+                <div className="grid grid-cols-7 auto-rows-auto gap-1 h-[calc(100%-2rem-0.5rem)]">
                     {daysInMonthGrid.map((day, index) => {
-                        if (!day) return <div key={`empty-${index}`} className="bg-secondary/40 rounded-md"></div>;
+                        if (!day) return <div key={`empty-${index}`} className="bg-secondary/40 rounded-md min-h-[80px]"></div>;
                         
                         const dayEvents = getEventsForDate(day);
                         const isSelected = selectedDate && isSameDay(day, selectedDate);
@@ -193,9 +203,9 @@ export default function AdminDashboardPage() {
                             <div 
                                 key={day.toString()} 
                                 onClick={() => { setSelectedDate(day); }}
-                                className={`p-2 rounded-md cursor-pointer transition-colors min-h-[80px] flex flex-col justify-between
+                                className={`p-2 rounded-md cursor-pointer transition-colors min-h-[80px] flex flex-col justify-between border border-transparent hover:border-primary/30
                                     ${isSelected ? 'bg-primary text-primary-foreground shadow-lg scale-105 ring-2 ring-primary-foreground ring-offset-2 ring-offset-primary' : 'bg-background hover:bg-muted/50'}
-                                    ${!isCurrentMonthDay ? 'text-muted-foreground/50 bg-secondary/20' : 'text-foreground'}
+                                    ${!isCurrentMonthDay ? 'text-muted-foreground/50 bg-secondary/20 hover:bg-secondary/30' : 'text-foreground'}
                                 `}
                             >
                                 <span className={`font-medium text-sm ${isSelected ? '' : (isCurrentMonthDay ? 'text-right' : 'text-right text-muted-foreground/50')}`}>{format(day, "d")}</span>
@@ -207,7 +217,7 @@ export default function AdminDashboardPage() {
                                             </p>
                                         )}
                                         {!isSelected && (
-                                        <div className="flex space-x-1 mt-1 justify-start">
+                                        <div className="flex space-x-1 mt-1 justify-start flex-wrap gap-y-1">
                                                 {dayEvents.slice(0, 3).map(e => (
                                                     <span key={e.id} className={`h-1.5 w-1.5 rounded-full ${e.color || 'bg-gray-400'}`} title={e.title}></span>
                                                 ))}
@@ -233,13 +243,18 @@ export default function AdminDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-             {isLoadingEvents && selectedDateEvents.length === 0 && (
+             {isLoadingEvents && selectedDateEvents.length === 0 && !selectedDate && (
+                 <div className="p-6 text-center text-muted-foreground">
+                    <p>Select a date on the calendar to view events.</p>
+                </div>
+             )}
+             {isLoadingEvents && selectedDate && (
                 <div className="p-4 space-y-2">
                     <div className="h-16 bg-muted/50 rounded animate-pulse"></div>
                     <div className="h-16 bg-muted/50 rounded animate-pulse"></div>
                 </div>
              )}
-             {!isLoadingEvents && selectedDateEvents.length === 0 && (
+             {!isLoadingEvents && selectedDateEvents.length === 0 && selectedDate && (
                 <div className="p-6 text-center text-muted-foreground">
                     <Info className="mx-auto h-10 w-10 mb-2 text-primary/50" />
                     <p>No events scheduled for this day.</p>
@@ -248,7 +263,7 @@ export default function AdminDashboardPage() {
              )}
             <div className="max-h-[calc(100vh-20rem)] overflow-y-auto event-list-scrollbar">
             {selectedDateEvents.map((event) => (
-              <div key={event.id} className="p-4 border-b last:border-b-0 hover:bg-muted/30 relative group">
+              <div key={event.id} className="p-4 border-b last:border-b-0 hover:bg-muted/30 relative group cursor-pointer" onClick={() => openViewEventDialog(event)}>
                 <div className="flex justify-between items-start mb-1">
                   <h4 className="font-semibold text-sm text-foreground">{event.title}</h4>
                   {event.price !== undefined && event.price > 0 && <span className="text-sm font-bold text-primary">${event.price.toFixed(2)}</span>}
@@ -265,12 +280,14 @@ export default function AdminDashboardPage() {
                     <p className="text-xs text-muted-foreground">{event.ticketsLeft} of {event.totalTickets} tickets left</p>
                   </>
                 )}
-                 <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-500 hover:text-blue-700" onClick={() => openEditEventDialog(event)}>
+                 <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1" onClick={(e) => e.stopPropagation()}> {/* Prevent dialog opening when clicking buttons */}
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-gray-700" onClick={() => openViewEventDialog(event)} title="View Details">
+                        <Eye className="h-4 w-4"/> <span className="sr-only">View</span>
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-500 hover:text-blue-700" onClick={() => openEditEventDialog(event)} title="Edit Event">
                         <Edit3 className="h-4 w-4"/> <span className="sr-only">Edit</span>
                     </Button>
-                    {/* AlertDialogTrigger removed, Button directly sets state to open AlertDialog */}
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700" onClick={() => setEventToDelete(event)}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700" onClick={() => setEventToDelete(event)} title="Delete Event">
                         <Trash2 className="h-4 w-4"/> <span className="sr-only">Delete</span>
                     </Button>
                 </div>
@@ -301,6 +318,14 @@ export default function AdminDashboardPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+       {/* Event Detail Dialog */}
+       <EventDetailDialog
+        event={selectedEventDetails}
+        isOpen={showEventDetailsDialog}
+        onOpenChange={setShowEventDetailsDialog}
+      />
+
     </div>
   );
 }
