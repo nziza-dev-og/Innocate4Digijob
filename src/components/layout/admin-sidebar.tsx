@@ -14,34 +14,41 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard, 
   MessageSquare, 
   Users, 
-  UserCheck, 
-  CalendarDays, 
-  DollarSign, 
-  ChefHat, // Using Lucide's ChefHat
   Settings,
-  ChevronDown,
   LogOut,
+  Briefcase, // Generic icon for "Projects" or "Stats"
+  PieChart, // For general stats/dashboard view
+  CalendarClock, // For Events/Schedule
+  ShieldCheck, // Placeholder for settings/security
+  LampDesk, // Placeholder for another section
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth-hook";
+import { cn } from "@/lib/utils";
 
-// Updated main navigation links
+// Simplified logo based on the image (two parallelograms)
+const AppLogo = () => (
+  <div className="flex items-center justify-center w-10 h-10">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 4L12 4L10 8L4 8L6 4Z" fill="hsl(var(--sidebar-accent))"/>
+      <path d="M10 10L16 10L14 14L8 14L10 10Z" fill="hsl(var(--sidebar-accent))"/>
+       <path d="M14 16L20 16L18 20L12 20L14 16Z" fill="hsl(var(--sidebar-accent))"/>
+    </svg>
+  </div>
+);
+
+
+// Main navigation links updated based on image sidebar (icons only)
 const mainMenuLinks = [
-  { href: "/admin/dashboard", label: "Events Dashboard", icon: LayoutDashboard, exactMatch: true }, // Dashboard is the events page.
+  { href: "/admin/dashboard", label: "Dashboard", icon: PieChart, exactMatch: true },
+  { href: "/admin/users", label: "Users", icon: Users }, // Assuming this covers students/teachers
   { href: "/admin/chat", label: "Chat", icon: MessageSquare },
-  { href: "/admin/users", label: "Users (Students/Teachers)", icon: Users }, // Unified user management
-  // { href: "/admin/teachers", label: "Teacher", icon: UserCheck }, // Keep separate if distinct teacher functionality is planned
-];
-
-const otherMenuLinks = [
-    { href: "/admin/finance", label: "Finance", icon: DollarSign },
-    { href: "/admin/food", label: "Food", icon: ChefHat, badge: "New" }, // Example badge
-    { href: "/admin/settings", label: "Settings", icon: Settings },
+  { href: "/admin/some-projects", label: "Projects", icon: Briefcase }, // Placeholder
+  { href: "/admin/some-stats", label: "Analytics", icon: LayoutDashboard }, // Placeholder
+  { href: "/admin/some-ideas", label: "Ideas", icon: LampDesk }, // Placeholder
 ];
 
 
@@ -52,46 +59,22 @@ export function AdminSidebar() {
 
   const isActive = (href: string, exactMatch: boolean = false) => {
     if (exactMatch) return pathname === href;
-    // Special case for dashboard as it might be /admin or /admin/dashboard
     if (href === "/admin/dashboard" && (pathname === "/admin" || pathname === "/admin/dashboard")) return true;
-    return pathname.startsWith(href) && href !== "/admin/dashboard"; // Avoids matching /admin/dashboard for other /admin/* links
+    return pathname.startsWith(href) && href !== "/admin/dashboard";
   };
 
   return (
+    // Sidebar configured for icon-only collapsible state as per new design
     <Sidebar variant="sidebar" side="left" collapsible="icon" className="border-r bg-sidebar text-sidebar-foreground">
-      <SidebarHeader className="p-4 border-b border-sidebar-border/50">
-        <Link href="/admin/dashboard" className="flex items-center gap-2" onClick={() => setOpenMobile(false)}>
-          <div className="bg-sidebar-primary text-sidebar-primary-foreground rounded-md p-2 w-10 h-10 flex items-center justify-center">
-            <span className="font-bold text-lg">AS</span>
-          </div>
-          <div className="group-data-[collapsible=icon]:hidden">
-            <p className="font-bold text-lg text-sidebar-primary">AdminSchool</p>
-            <p className="text-xs text-sidebar-foreground/70">School Admin Panel</p>
-          </div>
+      <SidebarHeader className="p-3 border-b border-sidebar-border/50 flex items-center justify-center group-data-[collapsible=icon]:py-3">
+        {/* Simplified Logo */}
+        <Link href="/admin/dashboard" className="flex items-center justify-center" onClick={() => setOpenMobile(false)}>
+           <AppLogo />
         </Link>
       </SidebarHeader>
       
-      <SidebarContent className="p-2 flex-grow">
-        {user && !loading && (
-             <div className="p-2 mb-2 border-b border-sidebar-border/30 group-data-[collapsible=icon]:hidden">
-                <div className="flex items-center gap-3 p-2 rounded-md bg-sidebar-primary/10">
-                    <Avatar className="h-10 w-10">
-                        <AvatarImage src={user.photoURL || "https://picsum.photos/seed/admin-user/40/40"} alt={user.displayName || "Admin User"} data-ai-hint="admin avatar"/>
-                        <AvatarFallback>{user.displayName?.[0].toUpperCase() || 'A'}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-sidebar-primary truncate">{user.displayName || "Admin User"}</p>
-                        <p className="text-xs text-sidebar-foreground/70">{user.role === "admin" ? "Super Admin" : "Admin"}</p> 
-                    </div>
-                    {/* Dropdown for user profile/quick actions could go here */}
-                </div>
-            </div>
-        )}
-        
-        <SidebarMenu>
-            <SidebarMenuItem className="px-2 py-1 group-data-[collapsible=icon]:py-0 group-data-[collapsible=icon]:px-0">
-                <p className="text-xs font-semibold text-sidebar-foreground/60 mb-1 group-data-[collapsible=icon]:hidden">Main Menu</p>
-            </SidebarMenuItem>
+      <SidebarContent className="p-2 flex-grow flex flex-col justify-between">
+        <SidebarMenu className="flex-grow space-y-1">
           {mainMenuLinks.map(link => (
             <SidebarMenuItem key={link.href}>
               <SidebarMenuButton
@@ -99,61 +82,65 @@ export function AdminSidebar() {
                 isActive={isActive(link.href, link.exactMatch)}
                 onClick={() => setOpenMobile(false)}
                 tooltip={{ children: link.label, side: "right", align: "center" }}
-                className={`
-                  justify-start rounded-md
-                  ${isActive(link.href, link.exactMatch) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "hover:bg-sidebar-accent/20 hover:text-sidebar-primary"}
-                `}
+                className={cn(
+                  "justify-center rounded-lg h-10 w-10 p-0", // Icon only style
+                  isActive(link.href, link.exactMatch) 
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+                    : "hover:bg-sidebar-accent/20 hover:text-sidebar-primary text-sidebar-foreground/70",
+                  "group-data-[collapsible=icon]:justify-center" // Ensure centered icon when collapsed
+                )}
               >
                 <Link href={link.href}>
-                  <link.icon className={`h-5 w-5 ${isActive(link.href, link.exactMatch) ? 'text-sidebar-accent-foreground' : 'text-sidebar-primary/80'}`}/>
-                  <span className="group-data-[collapsible=icon]:hidden">{link.label}</span>
-                  {link.badge && <Badge variant="secondary" className="ml-auto group-data-[collapsible=icon]:hidden bg-sidebar-foreground/20 text-sidebar-foreground/80">{link.badge}</Badge>}
+                  <link.icon className="h-5 w-5"/>
+                  <span className="sr-only group-data-[collapsible=expanded]:not-sr-only group-data-[collapsible=expanded]:ml-2">{link.label}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
-
-        <SidebarMenu className="mt-4">
-            <SidebarMenuItem className="px-2 py-1 group-data-[collapsible=icon]:py-0 group-data-[collapsible=icon]:px-0">
-                <p className="text-xs font-semibold text-sidebar-foreground/60 mb-1 group-data-[collapsible=icon]:hidden">Others</p>
-            </SidebarMenuItem>
-          {otherMenuLinks.map(link => (
-            <SidebarMenuItem key={link.href}>
+        
+        {/* Settings and User Avatar at the bottom */}
+        <SidebarMenu className="space-y-1 mt-auto">
+           <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
-                isActive={isActive(link.href)}
+                isActive={isActive("/admin/settings")}
                 onClick={() => setOpenMobile(false)}
-                tooltip={{ children: link.label, side: "right", align: "center" }}
-                className={`
-                    justify-start rounded-md
-                    ${isActive(link.href) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "hover:bg-sidebar-accent/20 hover:text-sidebar-primary"}
-                `}
+                tooltip={{ children: "Settings", side: "right", align: "center" }}
+                 className={cn(
+                  "justify-center rounded-lg h-10 w-10 p-0",
+                  isActive("/admin/settings") 
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+                    : "hover:bg-sidebar-accent/20 hover:text-sidebar-primary text-sidebar-foreground/70",
+                  "group-data-[collapsible=icon]:justify-center"
+                )}
               >
-                <Link href={link.href}>
-                  <link.icon className={`h-5 w-5 ${isActive(link.href) ? 'text-sidebar-accent-foreground' : 'text-sidebar-primary/80'}`}/>
-                  <span className="group-data-[collapsible=icon]:hidden">{link.label}</span>
-                   {link.badge && <Badge className="ml-auto group-data-[collapsible=icon]:hidden bg-accent text-accent-foreground px-1.5 text-[10px] h-4">{link.badge}</Badge>}
+                <Link href="/admin/settings">
+                  <Settings className="h-5 w-5" />
+                   <span className="sr-only group-data-[collapsible=expanded]:not-sr-only group-data-[collapsible=expanded]:ml-2">Settings</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-          ))}
         </SidebarMenu>
       </SidebarContent>
       
-      <SidebarFooter className="p-3 border-t border-sidebar-border/50">
-        <SidebarMenu>
-            <SidebarMenuItem>
-                 <SidebarMenuButton
-                    onClick={() => { signOut(); setOpenMobile(false); }}
-                    className="justify-start rounded-md hover:bg-sidebar-accent/20 hover:text-sidebar-primary text-sidebar-foreground/80"
-                    tooltip={{ children: "Logout", side: "right", align: "center" }}
-                >
-                    <LogOut className="h-5 w-5 text-sidebar-primary/80" />
-                    <span className="group-data-[collapsible=icon]:hidden">Logout</span>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-        </SidebarMenu>
+      <SidebarFooter className="p-3 border-t border-sidebar-border/50 flex items-center justify-center">
+        {user && !loading && (
+            <SidebarMenuButton
+                onClick={() => { signOut(); setOpenMobile(false); }}
+                className="justify-center rounded-full h-10 w-10 p-0 hover:bg-red-500/20 hover:text-red-400 text-sidebar-foreground/70"
+                tooltip={{ children: "Logout", side: "right", align: "center" }}
+            >
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user.photoURL || `https://picsum.photos/seed/${user?.uid}/40/40`} alt={user.displayName || "Admin"} data-ai-hint="admin avatar"/>
+                  <AvatarFallback>{user.displayName?.[0].toUpperCase() || 'A'}</AvatarFallback>
+                </Avatar>
+                 <span className="sr-only group-data-[collapsible=expanded]:not-sr-only group-data-[collapsible=expanded]:ml-2">Logout</span>
+            </SidebarMenuButton>
+        )}
+         {!user && loading && ( // Skeleton for avatar while loading
+             <div className="h-10 w-10 rounded-full bg-sidebar-foreground/10 animate-pulse"></div>
+         )}
       </SidebarFooter>
     </Sidebar>
   );

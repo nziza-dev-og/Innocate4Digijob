@@ -6,14 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { 
-    ChevronLeft, ChevronRight, Search, Bell, MessageSquare, UserCircle, Users, MoreVertical, Calendar as CalendarIcon, ChevronDown, PlusCircle, Trash2, Edit3, Info, Clock, Eye // Added Eye icon
+    ChevronLeft, ChevronRight, Search, Bell, MoreVertical, Calendar as CalendarIcon, ChevronDown, PlusCircle, Eye, Edit3, Trash2, Activity, Users, CheckSquare, Briefcase, ThumbsUp, Paperclip, UserPlus, KeyRound, LineChart as LineChartIcon, Settings, LogOut as LogOutIcon, Filter, ListFilter, CalendarDays
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
-import { format, addMonths, subMonths, getDaysInMonth, startOfMonth, getDay, eachDayOfInterval, endOfMonth, isSameDay, isSameMonth } from "date-fns";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { format, addMonths, subMonths, isSameDay, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from "date-fns";
 import type { SchoolEvent } from "@/types/event";
 import { getEvents, deleteEvent } from "@/lib/firebase/firestore";
 import { AddEventForm } from "@/components/admin/add-event-form";
@@ -29,21 +27,38 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { EventDetailDialog } from "@/components/event-detail-dialog"; // Import the detail dialog
+import { EventDetailDialog } from "@/components/event-detail-dialog";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line } from 'recharts';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+
+// Placeholder data for charts - replace with actual data fetching
+const dailySalesData = [
+  { name: 'Jan', sales: 200 }, { name: 'Feb', sales: 150 }, { name: 'Mar', sales: 300 },
+  { name: 'Apr', sales: 450 }, { name: 'May', sales: 250 }, { name: 'Jun', sales: 350 },
+];
+const weeklyInvoicesData = [
+  { name: 'W1', invoices: 20 }, { name: 'W2', invoices: 35 }, { name: 'W3', invoices: 25 },
+  { name: 'W4', invoices: 40 }, { name: 'W5', invoices: 30 },
+];
+const projectProgressData = [
+  { name: 'P1', progress: 30 }, { name: 'P2', progress: 50 }, { name: 'P3', progress: 70 },
+  { name: 'P4', progress: 60 }, { name: 'P5', progress: 85 },
+];
+
 
 export default function AdminDashboardPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, signOut, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentScheduleDate, setCurrentScheduleDate] = useState(new Date());
   const [events, setEvents] = useState<SchoolEvent[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
   const [eventToEdit, setEventToEdit] = useState<SchoolEvent | null>(null);
   const [eventToDelete, setEventToDelete] = useState<SchoolEvent | null>(null);
-
-  // State for showing event details
   const [selectedEventDetails, setSelectedEventDetails] = useState<SchoolEvent | null>(null);
   const [showEventDetailsDialog, setShowEventDetailsDialog] = useState(false);
 
@@ -53,11 +68,11 @@ export default function AdminDashboardPage() {
       setIsLoadingEvents(false);
       return;
     }
-    if(authLoading) return; // Wait for auth to complete
+    if(authLoading) return; 
 
     setIsLoadingEvents(true);
     try {
-      const fetchedEvents = await getEvents(true); // true for adminOnly
+      const fetchedEvents = await getEvents(true); 
       setEvents(fetchedEvents);
     } catch (error) {
       console.error("Error fetching events:", error);
@@ -71,40 +86,19 @@ export default function AdminDashboardPage() {
     fetchAdminEvents();
   }, [user, authLoading]);
 
-  const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
-  const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  const handlePrevScheduleDay = () => setCurrentScheduleDate(subMonths(currentScheduleDate, 1)); // Example: Month for now
+  const handleNextScheduleDay = () => setCurrentScheduleDate(addMonths(currentScheduleDate, 1)); // Example: Month for now
 
-  const daysInMonthGrid = useMemo(() => {
-    const start = startOfMonth(currentMonth);
-    const end = endOfMonth(currentMonth);
-    const days = eachDayOfInterval({ start, end });
-    const firstDayOfMonthWeekday = getDay(start); // 0 (Sun) - 6 (Sat)
-    // Adjust to make Monday the first day (0 for Monday, 6 for Sunday)
-    const startingDayOffset = (firstDayOfMonthWeekday === 0) ? 6 : firstDayOfMonthWeekday - 1; 
-    
-    const gridDays = Array(startingDayOffset).fill(null).concat(days);
-    // Calculate remaining cells needed to fill the grid (e.g., 6 rows * 7 cols = 42)
-    const totalGridCells = Math.ceil(gridDays.length / 7) * 7; // Ensures full rows
-    const remainingCells = totalGridCells - gridDays.length; 
-    return gridDays.concat(Array(Math.max(0,remainingCells)).fill(null));
-  }, [currentMonth]);
-
-
-  const getEventsForDate = (date: Date): SchoolEvent[] => {
-    return events.filter(event => isSameDay(event.date, date));
-  };
-
-  const selectedDateEvents = useMemo(() => {
-    if (!selectedDate) return [];
+  const scheduleEvents = useMemo(() => {
     return events
-      .filter(event => isSameDay(event.date, selectedDate))
+      .filter(event => isSameDay(event.date, currentScheduleDate))
       .sort((a,b) => new Date(`1970/01/01 ${a.time}`).getTime() - new Date(`1970/01/01 ${b.time}`).getTime());
-  }, [selectedDate, events]);
+  }, [currentScheduleDate, events]);
 
   const handleEventFormSuccess = () => {
     setShowAddEventDialog(false);
     setEventToEdit(null);
-    fetchAdminEvents(); // Refresh list
+    fetchAdminEvents(); 
   };
 
   const openEditEventDialog = (event: SchoolEvent) => {
@@ -130,44 +124,244 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Stats cards data (placeholders)
+  const statCards = [
+    { title: "Tasks Completed", value: "27", change: "-12%", icon: CheckSquare, color: "bg-gradient-to-br from-blue-500 to-blue-700" },
+    { title: "New Tasks Assigned", value: "45", change: "+8%", icon: PlusCircle, color: "bg-gradient-to-br from-green-500 to-green-700" },
+    { title: "Objectives Completed", value: "24", change: "-4%", icon: Activity, color: "bg-gradient-to-br from-yellow-500 to-yellow-600" },
+    { title: "Project Completed", value: "61%", change: "+3%", icon: Briefcase, color: "bg-gradient-to-br from-purple-500 to-purple-700" },
+  ];
+
+  const bottomStats = [
+      { label: "Likes", value: "16", icon: ThumbsUp },
+      { label: "Attachments", value: "32", icon: Paperclip },
+      { label: "Team Members", value: "24", icon: UserPlus },
+      { label: "Access Creds", value: "40", icon: KeyRound },
+  ];
+
+  if (authLoading && !user) {
+      return <div className="flex h-full items-center justify-center p-6 text-foreground">Loading dashboard...</div>;
+  }
+
+
   return (
-    <div className="flex flex-col h-full p-4 md:p-6 bg-secondary/30">
-      <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
-        <div className="flex items-center gap-2">
-          <div className="md:hidden"><SidebarTrigger /></div>
-          <h1 className="text-2xl font-semibold text-foreground">Events Management</h1>
+    <div className="flex h-full bg-background text-foreground">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col p-6 md:p-8 space-y-6 overflow-y-auto main-content-scrollbar">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 className="text-3xl font-bold text-foreground">Stats</h1>
+                <p className="text-sm text-muted-foreground">MONTHLY UPDATES</p>
+            </div>
+            <div className="flex items-center gap-3">
+                 <div className="relative min-w-[150px] sm:min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input type="search" placeholder="Search..." className="pl-9 h-10 rounded-full bg-card border-border focus:border-primary text-sm" />
+                </div>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="h-10 rounded-full text-sm">
+                            iOS App Project <ChevronDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem>Android App Project</DropdownMenuItem>
+                        <DropdownMenuItem>Web Platform</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
         </div>
-        
-        <div className="flex items-center gap-2 sm:gap-4 flex-wrap justify-center">
-            {/* Month Navigation */}
+
+        {/* Top Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <Card className="lg:col-span-3 bg-card shadow-xl">
+                <CardHeader>
+                    <CardTitle className="text-lg">Daily Sales Activity</CardTitle>
+                    <CardDescription className="text-xs">Today vs Yesterday</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[250px] pr-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={dailySalesData} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border)/0.5)" vertical={false}/>
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={12} stroke="hsl(var(--muted-foreground))" />
+                            <YAxis axisLine={false} tickLine={false} fontSize={12} stroke="hsl(var(--muted-foreground))" />
+                            <Tooltip cursor={{fill: 'hsl(var(--muted)/0.3)'}} contentStyle={{backgroundColor: 'hsl(var(--card))', borderRadius: 'var(--radius)', borderColor: 'hsl(var(--border))'}} />
+                            <Bar dataKey="sales" radius={[8, 8, 0, 0]} barSize={20}>
+                                {dailySalesData.map((entry, index) => (
+                                    <rect key={`bar-${index}`} fill={entry.name === 'Apr' ? 'hsl(var(--primary))' : `hsl(var(--chart-${(index % 3) + 1}))`} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </CardContent>
+            </Card>
+            <Card className="lg:col-span-2 bg-card shadow-xl">
+                <CardHeader>
+                    <CardTitle className="text-lg">Weekly Invoices</CardTitle>
+                    <CardDescription className="text-xs">From 12 Oct - 24 Nov</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[250px] pr-2">
+                     <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={weeklyInvoicesData} layout="vertical" margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border)/0.5)" horizontal={false}/>
+                            <XAxis type="number" axisLine={false} tickLine={false} fontSize={12} stroke="hsl(var(--muted-foreground))" />
+                            <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} fontSize={12} stroke="hsl(var(--muted-foreground))" width={30}/>
+                            <Tooltip cursor={{fill: 'hsl(var(--muted)/0.3)'}} contentStyle={{backgroundColor: 'hsl(var(--card))', borderRadius: 'var(--radius)', borderColor: 'hsl(var(--border))'}}/>
+                            <Bar dataKey="invoices" fill="hsl(var(--primary))" radius={[0, 8, 8, 0]} barSize={15}/>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </CardContent>
+            </Card>
+        </div>
+
+        {/* Stat Cards Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {statCards.map((card, index) => (
+                <Card key={index} className={cn("text-white shadow-xl overflow-hidden", card.color)}>
+                    <CardContent className="p-5">
+                        <div className="flex justify-between items-start mb-2">
+                            <div className="p-2.5 bg-black/20 rounded-lg">
+                                <card.icon className="h-6 w-6" />
+                            </div>
+                        </div>
+                        <p className="text-xs uppercase tracking-wider">{card.title}</p>
+                        <p className="text-4xl font-bold mt-1">{card.value}</p>
+                        <p className={cn("text-xs mt-1", parseFloat(card.change) > 0 ? "text-green-300" : "text-red-300")}>{card.change}</p>
+                    </CardContent>
+                </Card>
+            ))}
+        </div>
+
+        {/* Bottom Stats and Chart Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2 bg-card shadow-xl">
+                 <CardHeader>
+                    <CardTitle className="text-lg">Project Activity</CardTitle>
+                 </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        {bottomStats.map(stat => (
+                             <div key={stat.label} className="bg-secondary p-3 rounded-lg text-center">
+                                <stat.icon className="h-5 w-5 mx-auto mb-1.5 text-primary"/>
+                                <p className="text-sm font-medium">{stat.value}</p>
+                                <p className="text-xs text-muted-foreground">{stat.label}</p>
+                            </div>
+                        ))}
+                    </div>
+                     <div className="h-[150px] mt-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={projectProgressData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border)/0.3)" vertical={false}/>
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={10} stroke="hsl(var(--muted-foreground))"/>
+                                <YAxis axisLine={false} tickLine={false} fontSize={10} stroke="hsl(var(--muted-foreground))"/>
+                                <Tooltip contentStyle={{backgroundColor: 'hsl(var(--card))', borderRadius: 'var(--radius)', borderColor: 'hsl(var(--border))'}}/>
+                                <Line type="monotone" dataKey="progress" strokeWidth={3} stroke="hsl(var(--primary))" dot={{ r: 4, fill: 'hsl(var(--primary))', stroke: 'hsl(var(--card))', strokeWidth: 2 }} activeDot={{ r: 6 }}/>
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                </CardContent>
+                <CardFooter className="border-t border-border/50 pt-4">
+                     <Button variant="outline" className="w-full rounded-lg">View Project Details</Button>
+                </CardFooter>
+            </Card>
+
+             {/* Project Progress (Placeholder - design uses a line chart) */}
+            <Card className="bg-card shadow-xl">
+                 <CardHeader>
+                    <CardTitle className="text-lg">Upcoming Deadlines</CardTitle>
+                    <CardDescription className="text-xs">Key project milestones</CardDescription>
+                 </CardHeader>
+                <CardContent className="space-y-3">
+                    {/* Placeholder for deadlines */}
+                    {[1,2,3,4].map(i => (
+                        <div key={i} className="flex items-center justify-between p-2.5 bg-secondary rounded-lg">
+                            <div>
+                                <p className="text-sm font-medium">Milestone {i}</p>
+                                <p className="text-xs text-muted-foreground">Due: {format(new Date(Date.now() + i * 7 * 24 * 60 * 60 * 1000), "MMM dd, yyyy")}</p>
+                            </div>
+                            <Progress value={(i*20)+10} className="w-20 h-1.5 bg-muted" indicatorClassName="bg-primary"/>
+                        </div>
+                    ))}
+                </CardContent>
+                 <CardFooter className="border-t border-border/50 pt-4">
+                     <Button variant="outline" className="w-full rounded-lg">View All Deadlines</Button>
+                </CardFooter>
+            </Card>
+        </div>
+      </div>
+
+      {/* Right Schedule Sidebar */}
+      <div className="w-full md:w-96 bg-card border-l border-border flex flex-col h-full shadow-2xl">
+        <div className="p-4 border-b border-border/50 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+                 <Button variant="ghost" size="icon" onClick={handlePrevScheduleDay} className="h-8 w-8"><ChevronLeft className="h-5 w-5" /></Button>
+                 <Button variant="ghost" className="text-sm font-medium h-8 px-2">{format(currentScheduleDate, "EEE, dd MMM")}</Button>
+                 <Button variant="ghost" size="icon" onClick={handleNextScheduleDay} className="h-8 w-8"><ChevronRight className="h-5 w-5" /></Button>
+            </div>
             <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" onClick={handlePrevMonth} className="h-8 w-8">
-                    <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <span className="text-sm font-medium text-foreground w-28 text-center">{format(currentMonth, "MMMM yyyy")}</span>
-                <Button variant="ghost" size="icon" onClick={handleNextMonth} className="h-8 w-8">
-                    <ChevronRight className="h-5 w-5" />
-                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><ListFilter className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><MoreVertical className="h-4 w-4" /></Button>
             </div>
-            {/* Search (Placeholder) */}
-            <div className="relative min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input type="search" placeholder="Search events..." className="pl-9 h-9 rounded-full bg-background border-border" disabled/>
-            </div>
-             {/* Add Event Button */}
+        </div>
+        <ScrollArea className="flex-grow p-4 event-list-scrollbar">
+            {isLoadingEvents ? (
+                <div className="space-y-3">
+                    {[...Array(4)].map((_, i) => <Card key={i} className="p-4 bg-secondary animate-pulse h-20 rounded-xl"></Card>)}
+                </div>
+            ) : scheduleEvents.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground">
+                    <CalendarDays className="h-12 w-12 mx-auto mb-2 opacity-50"/>
+                    <p>No events for {format(currentScheduleDate, "MMM do")}.</p>
+                </div>
+            ) : (
+                scheduleEvents.map((event) => (
+                    <Card key={event.id} className="mb-3 bg-secondary/70 hover:bg-secondary rounded-xl shadow-md transition-all cursor-pointer group" onClick={() => openViewEventDialog(event)}>
+                        <CardContent className="p-4 flex items-start gap-3">
+                            <Avatar className="h-10 w-10 mt-1">
+                                <AvatarImage src={`https://picsum.photos/seed/${event.id}/40/40`} data-ai-hint="event icon"/>
+                                <AvatarFallback>{event.title?.[0] || 'E'}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                                <h4 className="font-semibold text-sm text-foreground group-hover:text-primary">{event.title}</h4>
+                                <p className="text-xs text-muted-foreground">
+                                   <Clock className="inline h-3 w-3 mr-1" /> {event.time} {event.description ? `• ${event.description}` : ''}
+                                </p>
+                            </div>
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 opacity-50 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                        <MoreVertical className="h-4 w-4"/>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => openViewEventDialog(event)}><Eye className="mr-2 h-4 w-4"/>View</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => openEditEventDialog(event)}><Edit3 className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
+                                    <DropdownMenuSeparator/>
+                                    <DropdownMenuItem onClick={() => setEventToDelete(event)} className="text-destructive focus:text-destructive">
+                                        <Trash2 className="mr-2 h-4 w-4"/>Delete
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </CardContent>
+                    </Card>
+                ))
+            )}
+        </ScrollArea>
+        <div className="p-4 border-t border-border/50">
             <Dialog open={showAddEventDialog} onOpenChange={(isOpen) => {
                 setShowAddEventDialog(isOpen);
-                if (!isOpen) setEventToEdit(null); // Reset edit state when dialog closes
+                if (!isOpen) setEventToEdit(null);
             }}>
               <DialogTrigger asChild>
-                <Button className="h-9 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs px-4" onClick={() => {setEventToEdit(null); setShowAddEventDialog(true);}}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add New Event
+                <Button className="w-full rounded-full bg-primary text-primary-foreground hover:bg-primary/90 text-base py-3" onClick={() => {setEventToEdit(null); setShowAddEventDialog(true);}}>
+                    <PlusCircle className="mr-2 h-5 w-5" /> Add New Event
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px]">
+              <DialogContent className="sm:max-w-[600px] bg-card">
                 <DialogHeader>
-                  <DialogTitle>{eventToEdit ? "Edit Event" : "Add New Event"}</DialogTitle>
-                  <DialogDescription>
+                  <DialogTitle className="text-foreground">{eventToEdit ? "Edit Event" : "Add New Event"}</DialogTitle>
+                  <DialogDescription className="text-muted-foreground">
                     {eventToEdit ? "Update the details for your event." : "Fill in the details for your new event."}
                   </DialogDescription>
                 </DialogHeader>
@@ -181,151 +375,28 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      <div className="flex-grow flex flex-col lg:flex-row gap-6">
-        <div className="flex-grow lg:w-2/3 bg-card p-4 rounded-lg shadow">
-            <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-muted-foreground mb-2">
-                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => <div key={day}>{day}</div>)}
-            </div>
-            {isLoadingEvents ? (
-                 <div className="grid grid-cols-7 auto-rows-auto gap-1 h-[calc(100%-2rem-0.5rem)]">
-                    {Array.from({length: daysInMonthGrid.length}).map((_, i) => <div key={i} className="bg-muted/30 rounded-md animate-pulse min-h-[80px]"></div>)}
-                </div>
-            ) : (
-                <div className="grid grid-cols-7 auto-rows-auto gap-1 h-[calc(100%-2rem-0.5rem)]">
-                    {daysInMonthGrid.map((day, index) => {
-                        if (!day) return <div key={`empty-${index}`} className="bg-secondary/40 rounded-md min-h-[80px]"></div>;
-                        
-                        const dayEvents = getEventsForDate(day);
-                        const isSelected = selectedDate && isSameDay(day, selectedDate);
-                        const isCurrentMonthDay = isSameMonth(day, currentMonth);
-
-                        return (
-                            <div 
-                                key={day.toString()} 
-                                onClick={() => { setSelectedDate(day); }}
-                                className={`p-2 rounded-md cursor-pointer transition-colors min-h-[80px] flex flex-col justify-between border border-transparent hover:border-primary/30
-                                    ${isSelected ? 'bg-primary text-primary-foreground shadow-lg scale-105 ring-2 ring-primary-foreground ring-offset-2 ring-offset-primary' : 'bg-background hover:bg-muted/50'}
-                                    ${!isCurrentMonthDay ? 'text-muted-foreground/50 bg-secondary/20 hover:bg-secondary/30' : 'text-foreground'}
-                                `}
-                            >
-                                <span className={`font-medium text-sm ${isSelected ? '' : (isCurrentMonthDay ? 'text-right' : 'text-right text-muted-foreground/50')}`}>{format(day, "d")}</span>
-                                {isCurrentMonthDay && dayEvents.length > 0 && (
-                                    <div className="mt-auto">
-                                        {isSelected && dayEvents[0]?.title && (
-                                            <p className="text-xs font-semibold truncate mt-1">{dayEvents[0].title}
-                                                {dayEvents.length > 1 && <span className="text-primary-foreground/80"> +{dayEvents.length-1}</span>}
-                                            </p>
-                                        )}
-                                        {!isSelected && (
-                                        <div className="flex space-x-1 mt-1 justify-start flex-wrap gap-y-1">
-                                                {dayEvents.slice(0, 3).map(e => (
-                                                    <span key={e.id} className={`h-1.5 w-1.5 rounded-full ${e.color || 'bg-gray-400'}`} title={e.title}></span>
-                                                ))}
-                                                {dayEvents.length > 3 && <span className="text-xs font-light text-muted-foreground/80">+</span>}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
-
-        <Card className="lg:w-1/3 shadow-lg">
-          <CardHeader className="border-b">
-            <CardTitle className="text-lg">
-                {selectedDate ? `Events for ${format(selectedDate, "MMM do, yyyy")}` : "Event List"}
-            </CardTitle>
-            <CardDescription className="text-xs">
-                {selectedDateEvents.length > 0 ? `${selectedDateEvents.length} event(s) scheduled.` : "No events for this day. Select a day on the calendar."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-             {isLoadingEvents && selectedDateEvents.length === 0 && !selectedDate && (
-                 <div className="p-6 text-center text-muted-foreground">
-                    <p>Select a date on the calendar to view events.</p>
-                </div>
-             )}
-             {isLoadingEvents && selectedDate && (
-                <div className="p-4 space-y-2">
-                    <div className="h-16 bg-muted/50 rounded animate-pulse"></div>
-                    <div className="h-16 bg-muted/50 rounded animate-pulse"></div>
-                </div>
-             )}
-             {!isLoadingEvents && selectedDateEvents.length === 0 && selectedDate && (
-                <div className="p-6 text-center text-muted-foreground">
-                    <Info className="mx-auto h-10 w-10 mb-2 text-primary/50" />
-                    <p>No events scheduled for this day.</p>
-                    <p className="text-xs mt-1">Click "Add New Event" to create one.</p>
-                </div>
-             )}
-            <div className="max-h-[calc(100vh-20rem)] overflow-y-auto event-list-scrollbar">
-            {selectedDateEvents.map((event) => (
-              <div key={event.id} className="p-4 border-b last:border-b-0 hover:bg-muted/30 relative group cursor-pointer" onClick={() => openViewEventDialog(event)}>
-                <div className="flex justify-between items-start mb-1">
-                  <h4 className="font-semibold text-sm text-foreground">{event.title}</h4>
-                  {event.price !== undefined && event.price > 0 && <span className="text-sm font-bold text-primary">${event.price.toFixed(2)}</span>}
-                  {event.price === 0 && <span className="text-sm font-semibold text-green-600">Free</span>}
-                </div>
-                <p className="text-xs text-muted-foreground mb-2">
-                  <CalendarIcon className="inline h-3 w-3 mr-1" /> {format(event.date, "MMM do, yyyy")} &nbsp;
-                  <Clock className="inline h-3 w-3 mr-1" /> {event.time}
-                </p>
-                {event.description && <p className="text-xs text-muted-foreground mb-2 truncate" title={event.description}>{event.description}</p>}
-                {event.totalTickets !== undefined && event.ticketsLeft !== undefined && (
-                  <>
-                    <Progress value={( (event.totalTickets - event.ticketsLeft) / event.totalTickets) * 100} className="h-1.5 mb-1" />
-                    <p className="text-xs text-muted-foreground">{event.ticketsLeft} of {event.totalTickets} tickets left</p>
-                  </>
-                )}
-                 <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1" onClick={(e) => e.stopPropagation()}> {/* Prevent dialog opening when clicking buttons */}
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-500 hover:text-gray-700" onClick={() => openViewEventDialog(event)} title="View Details">
-                        <Eye className="h-4 w-4"/> <span className="sr-only">View</span>
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-500 hover:text-blue-700" onClick={() => openEditEventDialog(event)} title="Edit Event">
-                        <Edit3 className="h-4 w-4"/> <span className="sr-only">Edit</span>
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700" onClick={() => setEventToDelete(event)} title="Delete Event">
-                        <Trash2 className="h-4 w-4"/> <span className="sr-only">Delete</span>
-                    </Button>
-                </div>
-              </div>
-            ))}
-            </div>
-          </CardContent>
-           <CardFooter className="p-4 border-t">
-                <Button variant="outline" className="w-full rounded-full" disabled>View All Month Events (Soon)</Button>
-           </CardFooter>
-        </Card>
-      </div>
-      {/* Delete Confirmation Dialog */}
+      {/* Modals */}
       <AlertDialog open={!!eventToDelete} onOpenChange={(isOpen) => !isOpen && setEventToDelete(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-card">
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the event
-              "{eventToDelete?.title}".
+            <AlertDialogTitle className="text-foreground">Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              This action cannot be undone. This will permanently delete the event "{eventToDelete?.title}".
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setEventToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
+            <AlertDialogCancel onClick={() => setEventToDelete(null)} className="text-foreground">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-       {/* Event Detail Dialog */}
        <EventDetailDialog
         event={selectedEventDetails}
         isOpen={showEventDetailsDialog}
         onOpenChange={setShowEventDetailsDialog}
       />
-
     </div>
   );
 }
+
