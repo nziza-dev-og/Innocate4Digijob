@@ -1,3 +1,4 @@
+
 import { db, auth } from '@/lib/firebase/config';
 import {
   collection,
@@ -19,7 +20,7 @@ import {
   writeBatch,
   Query,
   DocumentData,
-  deleteField, // Import deleteField
+  deleteField, 
 } from 'firebase/firestore';
 import type { SchoolEvent, SchoolEventFormData } from '@/types/event';
 import type { ChatMessage, ChatConversation, AppUser as ChatAppUser } from '@/types/chat';
@@ -81,27 +82,31 @@ export const getEvents = async (adminOnly: boolean = true, audienceFilter?: stri
       return [];
     }
   } else {
+    // For non-admin (student/public view), filter by audience
+    // If audienceFilter is provided and valid, use it. Otherwise, fetch 'student' and 'public' events.
     if (audienceFilter && ['student', 'public'].includes(audienceFilter)) {
        q = query(q, where('audience', '==', audienceFilter));
     } else {
+       // Default for non-admin: fetch events marked for 'student' or 'public'
        q = query(q, where('audience', 'in', ['student', 'public']));
     }
   }
 
-  q = query(q, orderBy('date', 'asc'));
+  q = query(q, orderBy('date', 'asc')); // Order events by date
 
   try {
       const querySnapshot = await getDocs(q);
       const events: SchoolEvent[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        if (data.date instanceof Timestamp) {
+        if (data.date instanceof Timestamp) { // Ensure date is a Firestore Timestamp
             events.push({
             id: doc.id,
             ...data,
-            date: data.date.toDate(),
+            date: data.date.toDate(), // Convert Timestamp to JS Date
             } as SchoolEvent);
         } else {
+            // Log a warning if an event has an invalid date format.
             console.warn(`Event with id ${doc.id} has invalid date format:`, data.date);
         }
       });
@@ -109,6 +114,7 @@ export const getEvents = async (adminOnly: boolean = true, audienceFilter?: stri
   } catch (error) {
       console.error("Error fetching events:", error);
       if (error instanceof Error && error.message.includes("invalid data")) {
+          // This specific error often indicates a problem with Firestore query syntax or values
           console.error("Firestore query error likely due to invalid filter value. Check query parameters.");
       }
       return []; 
@@ -137,7 +143,7 @@ export const updateEvent = async (eventId: string, eventData: Partial<SchoolEven
         updateData.date = Timestamp.fromDate(eventDate);
       } else {
         console.error("Invalid date format provided for update:", eventData.date);
-        delete updateData.date; 
+        delete updateData.date; // Do not update date if invalid
       }
   }
 
@@ -197,7 +203,7 @@ export const getOrCreateChatDocument = async (userId1: string, userId2: string):
       },
       createdAt: serverTimestamp(),
       lastMessageTimestamp: serverTimestamp(),
-      [`${userId1}_isRead`]: true, 
+      [`${userId1}_isRead`]: true, // Sender initially reads their own "chat creation"
       [`${userId2}_isRead`]: true,
     });
   }
@@ -229,9 +235,9 @@ export const sendChatMessage = async (chatId: string, senderId: string, text: st
   };
   participantIds.forEach(pid => {
       if (pid !== senderId) {
-          updateData[`${pid}_isRead`] = false;
+          updateData[`${pid}_isRead`] = false; // Mark as unread for other participants
       } else {
-          updateData[`${pid}_isRead`] = true; 
+          updateData[`${pid}_isRead`] = true; // Sender has read their own message
       }
   });
 
@@ -249,6 +255,8 @@ export const getUsersForChat = async (currentUserId: string): Promise<ChatAppUse
       return [];
   }
   const usersCollectionRef = collection(db, 'users');
+  // Query users excluding the current user.
+  // Optionally, you could filter by role here too if needed (e.g., !where('role', '==', 'admin'))
   const q = query(usersCollectionRef, where('uid', '!=', currentUserId)); 
 
   try {
@@ -256,11 +264,12 @@ export const getUsersForChat = async (currentUserId: string): Promise<ChatAppUse
     const users: ChatAppUser[] = [];
     querySnapshot.forEach((doc) => {
         const data = doc.data();
+        // Basic validation for essential fields
         if (data.uid && data.displayName) {
             users.push({
-                id: doc.id, 
+                id: doc.id, // Firestore document ID, which is user.uid
                 uid: data.uid,
-                name: data.displayName || data.email || "Unnamed User",
+                name: data.displayName || data.email || "Unnamed User", // Fallback for name
                 email: data.email,
                 photoURL: data.photoURL,
                 role: data.role,
@@ -268,7 +277,7 @@ export const getUsersForChat = async (currentUserId: string): Promise<ChatAppUse
                 lastSeen: data.lastSeen instanceof Timestamp ? data.lastSeen.toDate() : undefined,
             });
         } else {
-            console.warn(`Skipping user document ${doc.id} due to missing uid or displayName.`);
+            console.warn(`Skipping user document ${doc.id} in user list due to missing uid or displayName.`);
         }
     });
     return users;
@@ -286,13 +295,13 @@ export const getChatMessagesStream = (
 ) => {
    if (!db) {
       console.error("Firestore is not initialized. Cannot get chat messages stream.");
-      callback([]);
-      return () => {}; 
+      callback([]); // Call with empty array if DB not ready
+      return () => {}; // Return an empty unsubscribe function
    }
    if (!chatId) {
       console.error("Chat ID is required to stream messages.");
       callback([]);
-      return () => {}; 
+      return () => {};
    }
   const messagesQuery = query(
     collection(db, 'chats', chatId, 'messages'),
@@ -304,6 +313,7 @@ export const getChatMessagesStream = (
     const messages: ChatMessage[] = [];
     querySnapshot.forEach((doc) => {
       const data = doc.data();
+      // Ensure timestamp is converted to Date for client-side consistency
       if (data.timestamp instanceof Timestamp) {
             messages.push({
                 id: doc.id,
@@ -311,27 +321,28 @@ export const getChatMessagesStream = (
                 senderId: data.senderId,
                 text: data.text,
                 timestamp: data.timestamp.toDate(),
-                status: data.status,
+                status: data.status, // 'sent', 'delivered', 'read'
             } as ChatMessage);
         } else {
+             // Handle cases where timestamp might be pending (serverTimestamp) or invalid
              console.warn(`Message ${doc.id} in chat ${chatId} has invalid or pending timestamp.`);
              messages.push({
                  id: doc.id,
                  chatId: chatId,
                  senderId: data.senderId,
                  text: data.text,
-                 timestamp: new Date(),
+                 timestamp: new Date(), // Fallback to current date
                  status: data.status,
              } as ChatMessage);
         }
     });
-    callback(messages.reverse()); 
+    callback(messages.reverse()); // Reverse to show oldest first
   }, (error) => {
     console.error("Error streaming messages:", error);
     callback([]);
   });
 
-   return unsubscribe; 
+   return unsubscribe; // Return the actual Firebase unsubscribe function
 };
 
 // Create a new group chat
@@ -420,7 +431,7 @@ export const addParticipantToGroup = async (chatId: string, userIdToAdd: string,
         participants: [...currentParticipants, userIdToAdd],
         [`participantNames.${userIdToAdd}`]: userData?.displayName || "User",
         [`participantPhotoURLs.${userIdToAdd}`]: userData?.photoURL || null,
-        [`${userIdToAdd}_isRead`]: true, 
+        [`${userIdToAdd}_isRead`]: true, // New user is considered to have "read" up to this point
     });
 };
 
@@ -445,6 +456,7 @@ export const removeParticipantFromGroup = async (chatId: string, userIdToRemove:
         throw new Error("Only group admins can remove participants.");
     }
      if (userIdToRemove === chatData.createdBy && chatData.participants.length > 1) {
+        // Potentially more complex logic here: transfer ownership or require group to be empty
         throw new Error("Creator cannot be removed if other participants exist. Transfer ownership or disband.");
     }
 
@@ -457,9 +469,10 @@ export const removeParticipantFromGroup = async (chatId: string, userIdToRemove:
     
     const updates: any = {
         participants: currentParticipants.filter((pid: string) => pid !== userIdToRemove),
+        // Use deleteField to remove map keys
         [`participantNames.${userIdToRemove}`]: deleteField(), 
         [`participantPhotoURLs.${userIdToRemove}`]: deleteField(),
-        [`${userIdToRemove}_isRead`]: deleteField(),
+        [`${userIdToRemove}_isRead`]: deleteField(), // Remove read status for the user
     };
      // If removed user was an admin, remove them from admins array
     if (chatData.admins && chatData.admins.includes(userIdToRemove)) {
@@ -474,7 +487,7 @@ export const removeParticipantFromGroup = async (chatId: string, userIdToRemove:
 };
 
 
-// Fetch group chat details
+// Fetch group chat details (can be expanded)
 export const getGroupChatDetails = async (chatId: string): Promise<ChatConversation | null> => {
   if (!db) {
     console.error("Firestore is not initialized. Cannot get group chat details.");
@@ -490,16 +503,18 @@ export const getGroupChatDetails = async (chatId: string): Promise<ChatConversat
       participants: data.participants,
       type: 'group',
       groupName: data.groupName,
-      groupPhotoURL: data.groupPhotoURL,
+      groupPhotoURL: data.groupPhotoURL, // Optional
       lastMessageText: data.lastMessageText,
       lastMessageTimestamp: data.lastMessageTimestamp instanceof Timestamp ? data.lastMessageTimestamp.toDate() : new Date(),
       lastMessageSenderId: data.lastMessageSenderId,
-      participantNames: data.participantNames,
-      participantPhotoURLs: data.participantPhotoURLs,
+      // unreadCount logic for groups would be per-user, potentially stored elsewhere or calculated
+      participantNames: data.participantNames, // Map of UID to Name
+      participantPhotoURLs: data.participantPhotoURLs, // Map of UID to PhotoURL
       createdBy: data.createdBy,
       admins: data.admins,
-      otherUser: null, // No single "otherUser" for group chat display in list
+      otherUser: null, // Not applicable for group overview, individual participant details are in maps
     } as ChatConversation;
   }
   return null;
 };
+

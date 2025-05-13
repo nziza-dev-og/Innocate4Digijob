@@ -5,16 +5,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth-hook";
 import Link from "next/link";
-import { useEffect, useState, useMemo } from "react"; // Added useMemo
+import { useEffect, useState, useMemo } from "react"; 
 import Image from "next/image";
 import { Calendar } from "@/components/ui/calendar";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { ArrowRight, BookOpen, Briefcase, CalendarCheck, DollarSign, PlusCircle, UserCircle2, Users, Video, Clock, Loader2, Info, CheckCircle } from "lucide-react"; // Added CheckCircle
+import { ArrowRight, BookOpen, Briefcase, CalendarCheck, DollarSign, PlusCircle, UserCircle2, Users, Video, Clock, Loader2, Info, CheckCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getEvents } from "@/lib/firebase/firestore";
 import type { SchoolEvent } from "@/types/event";
-import { format, isSameDay } from "date-fns"; // Added isSameDay
+import { format, isSameDay } from "date-fns"; 
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -64,8 +64,8 @@ export default function UserDashboardPage() {
   const { toast } = useToast();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date()); // Renamed from calendarDate
-  const [allEvents, setAllEvents] = useState<SchoolEvent[]>([]); // Store all fetched events
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date()); 
+  const [allEvents, setAllEvents] = useState<SchoolEvent[]>([]); 
   const [isLoadingSchedule, setIsLoadingSchedule] = useState(true);
 
 
@@ -85,11 +85,10 @@ export default function UserDashboardPage() {
   // Fetch all relevant events for the student/public
   useEffect(() => {
     const fetchStudentEvents = async () => {
-      // No need to check for user here, getEvents handles visibility based on adminOnly flag
       setIsLoadingSchedule(true);
       try {
         // Fetch events accessible to students ('student' or 'public' audience)
-        const fetchedEvents = await getEvents(false); // false -> not admin only
+        const fetchedEvents = await getEvents(false); // false -> not admin only (fetches 'student' and 'public' events)
         setAllEvents(fetchedEvents);
       } catch (error) {
         console.error("Error fetching schedule events:", error);
@@ -98,15 +97,15 @@ export default function UserDashboardPage() {
         setIsLoadingSchedule(false);
       }
     };
-     fetchStudentEvents(); // Fetch events regardless of login state for public visibility
-  }, [toast]); // Removed user dependency, events might be public
+     fetchStudentEvents(); 
+  }, [toast]); 
 
   // Filter events based on the selected date using useMemo
   const eventsForSelectedDate = useMemo(() => {
     if (!selectedDate || !allEvents) return [];
     return allEvents
       .filter(event => isSameDay(event.date, selectedDate))
-      .sort((a, b) => new Date(`1970/01/01 ${a.time}`).getTime() - new Date(`1970/01/01 ${b.time}`).getTime()); // Sort by time
+      .sort((a, b) => new Date(`1970/01/01 ${a.time}`).getTime() - new Date(`1970/01/01 ${b.time}`).getTime()); 
   }, [selectedDate, allEvents]);
 
 
@@ -136,7 +135,7 @@ export default function UserDashboardPage() {
   }
 
   return (
-    <div className="space-y-6 p-6"> {/* Added padding */}
+    <div className="space-y-6 p-6"> 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content Area (Left and Middle) */}
         <div className="lg:col-span-2 space-y-6">
@@ -180,18 +179,18 @@ export default function UserDashboardPage() {
             <Card className="shadow-md">
               <CardContent className="p-4 flex flex-col items-center text-center justify-center h-full">
                  <div className="p-3 rounded-full bg-blue-100 mb-2">
-                    <BookOpen className="h-6 w-6 text-blue-500" /> {/* Changed Icon */}
+                    <BookOpen className="h-6 w-6 text-blue-500" /> 
                  </div>
-                <p className="text-2xl font-bold text-foreground">2</p> {/* Placeholder */}
+                <p className="text-2xl font-bold text-foreground">2</p> 
                 <p className="text-xs text-muted-foreground">Courses In Progress</p>
               </CardContent>
             </Card>
              <Card className="shadow-md">
               <CardContent className="p-4 flex flex-col items-center text-center justify-center h-full">
                  <div className="p-3 rounded-full bg-purple-100 mb-2">
-                    <CheckCircle className="h-6 w-6 text-purple-500" /> {/* Changed Icon */}
+                    <CheckCircle className="h-6 w-6 text-purple-500" /> 
                  </div>
-                <p className="text-2xl font-bold text-foreground">5</p> {/* Placeholder */}
+                <p className="text-2xl font-bold text-foreground">5</p> 
                 <p className="text-xs text-muted-foreground">Courses Completed</p>
               </CardContent>
             </Card>
@@ -232,7 +231,7 @@ export default function UserDashboardPage() {
                 <Calendar
                     mode="single"
                     selected={selectedDate}
-                    onSelect={setSelectedDate} // Update the selectedDate state
+                    onSelect={setSelectedDate} 
                     className="rounded-md p-0 [&_button]:h-8 [&_button]:w-8 [&_caption_label]:text-sm"
                     classNames={{
                         caption_label: "text-sm font-medium text-foreground",
@@ -241,6 +240,13 @@ export default function UserDashboardPage() {
                         day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
                         day_today: "bg-accent/20 text-accent-foreground",
                     }}
+                    // Add modifiers for days with events if desired
+                    // modifiers={{ 
+                    //   hasEvent: allEvents.map(e => e.date) 
+                    // }}
+                    // modifiersClassNames={{
+                    //   hasEvent: 'bg-blue-100 dark:bg-blue-800 rounded-full'
+                    // }}
                 />
             </CardContent>
           </Card>
@@ -254,19 +260,19 @@ export default function UserDashboardPage() {
                   <Link href="/dashboard/schedule">View All</Link>
               </Button>
             </CardHeader>
-            <CardContent className="space-y-3 min-h-[150px]"> {/* Added min-height */}
+            <CardContent className="space-y-3 min-h-[150px]"> 
               {isLoadingSchedule ? (
                 <div className="space-y-3 p-3">
                     <Skeleton className="h-16 w-full rounded-lg" />
                     <Skeleton className="h-16 w-full rounded-lg" />
                 </div>
-              ) : eventsForSelectedDate.length === 0 ? ( // Use filtered events
+              ) : eventsForSelectedDate.length === 0 ? ( 
                  <div className="p-6 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
                     <Info className="h-8 w-8 mb-2 text-primary/50" />
                     <p className="text-sm">No events scheduled for this day.</p>
                 </div>
               ) : (
-                eventsForSelectedDate.map(event => { // Use filtered events
+                eventsForSelectedDate.map(event => { 
                     const Icon = eventIconMap[event.description || 'default'] || eventIconMap.default;
                     const iconBg = eventIconBgMap[event.description || 'default'] || eventIconBgMap.default;
                     const iconColor = eventIconColorMap[event.description || 'default'] || eventIconColorMap.default;
@@ -292,3 +298,4 @@ export default function UserDashboardPage() {
     </div>
   );
 }
+
