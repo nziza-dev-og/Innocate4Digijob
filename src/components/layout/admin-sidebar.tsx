@@ -19,17 +19,16 @@ import {
   MessageSquare, 
   Users, 
   Settings,
-  LogOut,
-  Briefcase, // Generic icon for "Projects" or "Stats"
-  PieChart, // For general stats/dashboard view
-  CalendarClock, // For Events/Schedule
-  ShieldCheck, // Placeholder for settings/security
-  LampDesk, // Placeholder for another section
+  LogOutIcon as LogOut, // Renamed to avoid conflict
+  Briefcase, 
+  PieChart, 
+  CalendarClock, 
+  ShieldCheck, 
+  LampDesk, 
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth-hook";
 import { cn } from "@/lib/utils";
 
-// Simplified logo based on the image (two parallelograms)
 const AppLogo = () => (
   <div className="flex items-center justify-center w-10 h-10">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -40,15 +39,13 @@ const AppLogo = () => (
   </div>
 );
 
-
-// Main navigation links updated based on image sidebar (icons only)
 const mainMenuLinks = [
   { href: "/admin/dashboard", label: "Dashboard", icon: PieChart, exactMatch: true },
-  { href: "/admin/users", label: "Users", icon: Users }, // Assuming this covers students/teachers
+  { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/chat", label: "Chat", icon: MessageSquare },
-  { href: "/admin/some-projects", label: "Projects", icon: Briefcase }, // Placeholder
-  { href: "/admin/some-stats", label: "Analytics", icon: LayoutDashboard }, // Placeholder
-  { href: "/admin/some-ideas", label: "Ideas", icon: LampDesk }, // Placeholder
+  { href: "/admin/projects", label: "Projects", icon: Briefcase }, // Placeholder link
+  { href: "/admin/analytics", label: "Analytics", icon: LayoutDashboard }, // Placeholder link
+  { href: "/admin/ideas", label: "Ideas", icon: LampDesk }, // Placeholder link
 ];
 
 
@@ -59,15 +56,14 @@ export function AdminSidebar() {
 
   const isActive = (href: string, exactMatch: boolean = false) => {
     if (exactMatch) return pathname === href;
+    // Special handling for /admin/dashboard to also match /admin
     if (href === "/admin/dashboard" && (pathname === "/admin" || pathname === "/admin/dashboard")) return true;
-    return pathname.startsWith(href) && href !== "/admin/dashboard";
+    return pathname.startsWith(href) && href !== "/admin/dashboard"; // Avoid matching dashboard for other /admin/* routes
   };
 
   return (
-    // Sidebar configured for icon-only collapsible state as per new design
     <Sidebar variant="sidebar" side="left" collapsible="icon" className="border-r bg-sidebar text-sidebar-foreground">
       <SidebarHeader className="p-3 border-b border-sidebar-border/50 flex items-center justify-center group-data-[collapsible=icon]:py-3">
-        {/* Simplified Logo */}
         <Link href="/admin/dashboard" className="flex items-center justify-center" onClick={() => setOpenMobile(false)}>
            <AppLogo />
         </Link>
@@ -83,11 +79,11 @@ export function AdminSidebar() {
                 onClick={() => setOpenMobile(false)}
                 tooltip={{ children: link.label, side: "right", align: "center" }}
                 className={cn(
-                  "justify-center rounded-lg h-10 w-10 p-0", // Icon only style
+                  "justify-center rounded-lg h-10 w-10 p-0", 
                   isActive(link.href, link.exactMatch) 
                     ? "bg-sidebar-accent text-sidebar-accent-foreground" 
                     : "hover:bg-sidebar-accent/20 hover:text-sidebar-primary text-sidebar-foreground/70",
-                  "group-data-[collapsible=icon]:justify-center" // Ensure centered icon when collapsed
+                  "group-data-[collapsible=icon]:justify-center" 
                 )}
               >
                 <Link href={link.href}>
@@ -99,7 +95,6 @@ export function AdminSidebar() {
           ))}
         </SidebarMenu>
         
-        {/* Settings and User Avatar at the bottom */}
         <SidebarMenu className="space-y-1 mt-auto">
            <SidebarMenuItem>
               <SidebarMenuButton
@@ -138,7 +133,7 @@ export function AdminSidebar() {
                  <span className="sr-only group-data-[collapsible=expanded]:not-sr-only group-data-[collapsible=expanded]:ml-2">Logout</span>
             </SidebarMenuButton>
         )}
-         {!user && loading && ( // Skeleton for avatar while loading
+         {!user && loading && ( 
              <div className="h-10 w-10 rounded-full bg-sidebar-foreground/10 animate-pulse"></div>
          )}
       </SidebarFooter>

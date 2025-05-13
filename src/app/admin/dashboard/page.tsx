@@ -8,10 +8,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { 
-    ChevronLeft, ChevronRight, Search, Bell, MoreVertical, Calendar as CalendarIcon, ChevronDown, PlusCircle, Eye, Edit3, Trash2, Activity, Users, CheckSquare, Briefcase, ThumbsUp, Paperclip, UserPlus, KeyRound, LineChart as LineChartIcon, Settings, LogOut as LogOutIcon, Filter, ListFilter, CalendarDays, Clock // Added Clock
+    ChevronLeft, ChevronRight, Search, Bell, MoreVertical, Calendar as CalendarIcon, ChevronDown, PlusCircle, Eye, Edit3, Trash2, Activity, Users, CheckSquare, Briefcase, ThumbsUp, Paperclip, UserPlus, KeyRound, LineChart as LineChartIcon, Settings, LogOut as LogOutIcon, Filter, ListFilter, CalendarDays, Clock, Loader2
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
-import { format, addMonths, subMonths, isSameDay, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from "date-fns";
+import { format, addMonths, subMonths, isSameDay, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, getDay, parseISO } from "date-fns";
 import type { SchoolEvent } from "@/types/event";
 import { getEvents, deleteEvent } from "@/lib/firebase/firestore";
 import { AddEventForm } from "@/components/admin/add-event-form";
@@ -33,6 +33,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
+
 
 // Placeholder data for charts - replace with actual data fetching
 const dailySalesData = [
@@ -52,7 +54,7 @@ const projectProgressData = [
 export default function AdminDashboardPage() {
   const { user, signOut, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [currentScheduleDate, setCurrentScheduleDate] = useState(new Date());
+  
   const [events, setEvents] = useState<SchoolEvent[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   
@@ -61,6 +63,11 @@ export default function AdminDashboardPage() {
   const [eventToDelete, setEventToDelete] = useState<SchoolEvent | null>(null);
   const [selectedEventDetails, setSelectedEventDetails] = useState<SchoolEvent | null>(null);
   const [showEventDetailsDialog, setShowEventDetailsDialog] = useState(false);
+
+  // State for current month view in schedule, selectedDate for day's events
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+
 
   const fetchAdminEvents = async () => {
     if (!user && !authLoading) {
@@ -72,9 +79,12 @@ export default function AdminDashboardPage() {
 
     setIsLoadingEvents(true);
     try {
-      // Fetch only events created by the current admin
       const fetchedEvents = await getEvents(true); // true -> admin only
-      setEvents(fetchedEvents);
+      setEvents(fetchedEvents.map(event => ({
+        ...event,
+        // Ensure date is a JS Date object; Firestore timestamps are handled by getEvents
+        date: event.date instanceof Date ? event.date : parseISO(event.date as unknown as string),
+      })));
     } catch (error) {
       console.error("Error fetching events:", error);
       toast({ title: "Error", description: "Could not fetch events.", variant: "destructive" });
@@ -84,16 +94,16 @@ export default function AdminDashboardPage() {
   };
 
   useEffect(() => {
-    fetchAdminEvents();
+    if(user) {
+      fetchAdminEvents();
+    }
   }, [user, authLoading]);
 
-  // Use selectedDate for filtering, not currentScheduleDate for events list
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
-  const handlePrevScheduleDay = () => setSelectedDate(prevDate => subMonths(prevDate || new Date(), 1)); 
-  const handleNextScheduleDay = () => setSelectedDate(prevDate => addMonths(prevDate || new Date(), 1)); 
+  const handlePrevScheduleMonth = () => setCurrentMonth(prevDate => subMonths(prevDate, 1)); 
+  const handleNextScheduleMonth = () => setCurrentMonth(prevDate => addMonths(prevDate, 1)); 
 
-  const scheduleEvents = useMemo(() => {
+  const scheduleEventsForSelectedDate = useMemo(() => {
     if (!selectedDate) return [];
     return events
       .filter(event => isSameDay(event.date, selectedDate))
@@ -145,7 +155,20 @@ export default function AdminDashboardPage() {
   ];
 
   if (authLoading && !user) {
-      return <div className="flex h-full items-center justify-center p-6 text-foreground">Loading dashboard...</div>;
+      return (
+         <div className="flex h-full items-center justify-center p-6 text-foreground">
+            <div className="space-y-4 p-8 w-full max-w-4xl">
+                <Skeleton className="h-32 w-full" />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-32 w-full" />)}
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <Skeleton className="h-64 w-full lg:col-span-2" />
+                    <Skeleton className="h-64 w-full" />
+                </div>
+            </div>
+         </div>
+      );
   }
 
 
@@ -271,22 +294,19 @@ export default function AdminDashboardPage() {
                 </CardFooter>
             </Card>
 
-             {/* Project Progress (Placeholder - design uses a line chart) */}
             <Card className="bg-card shadow-xl">
                  <CardHeader>
                     <CardTitle className="text-lg">Upcoming Deadlines</CardTitle>
                     <CardDescription className="text-xs">Key project milestones</CardDescription>
                  </CardHeader>
                 <CardContent className="space-y-3">
-                    {/* Placeholder for deadlines */}
                     {[1,2,3,4].map(i => (
                         <div key={i} className="flex items-center justify-between p-2.5 bg-secondary rounded-lg">
                             <div>
                                 <p className="text-sm font-medium">Milestone {i}</p>
                                 <p className="text-xs text-muted-foreground">Due: {format(new Date(Date.now() + i * 7 * 24 * 60 * 60 * 1000), "MMM dd, yyyy")}</p>
                             </div>
-                            {/* Removed incorrect indicatorClassName prop */}
-                            <Progress value={(i*20)+10} className="w-20 h-1.5 bg-muted" /> 
+                            <Progress value={(i*20)+10} className="w-20 h-1.5 bg-muted" indicatorClassName="bg-primary" /> 
                         </div>
                     ))}
                 </CardContent>
@@ -301,10 +321,9 @@ export default function AdminDashboardPage() {
       <div className="w-full md:w-96 bg-card border-l border-border flex flex-col h-full shadow-2xl">
         <div className="p-4 border-b border-border/50 flex items-center justify-between">
             <div className="flex items-center gap-2">
-                 <Button variant="ghost" size="icon" onClick={handlePrevScheduleDay} className="h-8 w-8"><ChevronLeft className="h-5 w-5" /></Button>
-                 {/* Format the selectedDate for display */}
-                 <Button variant="ghost" className="text-sm font-medium h-8 px-2">{selectedDate ? format(selectedDate, "EEE, dd MMM") : "Select Date"}</Button>
-                 <Button variant="ghost" size="icon" onClick={handleNextScheduleDay} className="h-8 w-8"><ChevronRight className="h-5 w-5" /></Button>
+                 <Button variant="ghost" size="icon" onClick={handlePrevScheduleMonth} className="h-8 w-8"><ChevronLeft className="h-5 w-5" /></Button>
+                 <Button variant="ghost" className="text-sm font-medium h-8 px-2">{format(currentMonth, "MMMM yyyy")}</Button>
+                 <Button variant="ghost" size="icon" onClick={handleNextScheduleMonth} className="h-8 w-8"><ChevronRight className="h-5 w-5" /></Button>
             </div>
             <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><ListFilter className="h-4 w-4" /></Button>
@@ -314,15 +333,20 @@ export default function AdminDashboardPage() {
         <ScrollArea className="flex-grow p-4 event-list-scrollbar">
             {isLoadingEvents ? (
                 <div className="space-y-3">
-                    {[...Array(4)].map((_, i) => <Card key={i} className="p-4 bg-secondary animate-pulse h-20 rounded-xl"></Card>)}
+                    {[...Array(4)].map((_, i) => <Skeleton key={i} className="p-4 bg-secondary animate-pulse h-20 rounded-xl"></Skeleton>)}
                 </div>
-            ) : scheduleEvents.length === 0 ? (
+            ) : scheduleEventsForSelectedDate.length === 0 && selectedDate ? (
                 <div className="text-center py-10 text-muted-foreground">
                     <CalendarDays className="h-12 w-12 mx-auto mb-2 opacity-50"/>
-                    <p>No events for {selectedDate ? format(selectedDate, "MMM do") : "this date"}.</p>
+                    <p>No events for {format(selectedDate, "MMM do")}.</p>
+                </div>
+            ) : !selectedDate ? (
+                 <div className="text-center py-10 text-muted-foreground">
+                    <CalendarDays className="h-12 w-12 mx-auto mb-2 opacity-50"/>
+                    <p>Select a date to view events.</p>
                 </div>
             ) : (
-                scheduleEvents.map((event) => (
+                scheduleEventsForSelectedDate.map((event) => (
                     <Card key={event.id} className="mb-3 bg-secondary/70 hover:bg-secondary rounded-xl shadow-md transition-all cursor-pointer group" onClick={() => openViewEventDialog(event)}>
                         <CardContent className="p-4 flex items-start gap-3">
                             <Avatar className="h-10 w-10 mt-1">
@@ -346,7 +370,7 @@ export default function AdminDashboardPage() {
                                     <DropdownMenuItem onClick={() => openViewEventDialog(event)}><Eye className="mr-2 h-4 w-4"/>View</DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => openEditEventDialog(event)}><Edit3 className="mr-2 h-4 w-4"/>Edit</DropdownMenuItem>
                                     <DropdownMenuSeparator/>
-                                    <DropdownMenuItem onClick={() => setEventToDelete(event)} className="text-destructive focus:text-destructive">
+                                    <DropdownMenuItem onClick={() => setEventToDelete(event)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                                         <Trash2 className="mr-2 h-4 w-4"/>Delete
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
@@ -407,4 +431,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
