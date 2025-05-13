@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { 
-    ChevronLeft, ChevronRight, Search, Bell, MoreVertical, Calendar as CalendarIcon, ChevronDown, PlusCircle, Eye, Edit3, Trash2, Activity, Users, CheckSquare, Briefcase, ThumbsUp, Paperclip, UserPlus, KeyRound, LineChart as LineChartIcon, Settings, LogOut as LogOutIcon, Filter, ListFilter, CalendarDays
+    ChevronLeft, ChevronRight, Search, Bell, MoreVertical, Calendar as CalendarIcon, ChevronDown, PlusCircle, Eye, Edit3, Trash2, Activity, Users, CheckSquare, Briefcase, ThumbsUp, Paperclip, UserPlus, KeyRound, LineChart as LineChartIcon, Settings, LogOut as LogOutIcon, Filter, ListFilter, CalendarDays, Clock // Added Clock
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { format, addMonths, subMonths, isSameDay, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, getDay } from "date-fns";
@@ -72,7 +72,8 @@ export default function AdminDashboardPage() {
 
     setIsLoadingEvents(true);
     try {
-      const fetchedEvents = await getEvents(true); 
+      // Fetch only events created by the current admin
+      const fetchedEvents = await getEvents(true); // true -> admin only
       setEvents(fetchedEvents);
     } catch (error) {
       console.error("Error fetching events:", error);
@@ -86,14 +87,18 @@ export default function AdminDashboardPage() {
     fetchAdminEvents();
   }, [user, authLoading]);
 
-  const handlePrevScheduleDay = () => setCurrentScheduleDate(subMonths(currentScheduleDate, 1)); // Example: Month for now
-  const handleNextScheduleDay = () => setCurrentScheduleDate(addMonths(currentScheduleDate, 1)); // Example: Month for now
+  // Use selectedDate for filtering, not currentScheduleDate for events list
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+
+  const handlePrevScheduleDay = () => setSelectedDate(prevDate => subMonths(prevDate || new Date(), 1)); 
+  const handleNextScheduleDay = () => setSelectedDate(prevDate => addMonths(prevDate || new Date(), 1)); 
 
   const scheduleEvents = useMemo(() => {
+    if (!selectedDate) return [];
     return events
-      .filter(event => isSameDay(event.date, currentScheduleDate))
+      .filter(event => isSameDay(event.date, selectedDate))
       .sort((a,b) => new Date(`1970/01/01 ${a.time}`).getTime() - new Date(`1970/01/01 ${b.time}`).getTime());
-  }, [currentScheduleDate, events]);
+  }, [selectedDate, events]);
 
   const handleEventFormSuccess = () => {
     setShowAddEventDialog(false);
@@ -280,7 +285,8 @@ export default function AdminDashboardPage() {
                                 <p className="text-sm font-medium">Milestone {i}</p>
                                 <p className="text-xs text-muted-foreground">Due: {format(new Date(Date.now() + i * 7 * 24 * 60 * 60 * 1000), "MMM dd, yyyy")}</p>
                             </div>
-                            <Progress value={(i*20)+10} className="w-20 h-1.5 bg-muted" indicatorClassName="bg-primary"/>
+                            {/* Removed incorrect indicatorClassName prop */}
+                            <Progress value={(i*20)+10} className="w-20 h-1.5 bg-muted" /> 
                         </div>
                     ))}
                 </CardContent>
@@ -296,7 +302,8 @@ export default function AdminDashboardPage() {
         <div className="p-4 border-b border-border/50 flex items-center justify-between">
             <div className="flex items-center gap-2">
                  <Button variant="ghost" size="icon" onClick={handlePrevScheduleDay} className="h-8 w-8"><ChevronLeft className="h-5 w-5" /></Button>
-                 <Button variant="ghost" className="text-sm font-medium h-8 px-2">{format(currentScheduleDate, "EEE, dd MMM")}</Button>
+                 {/* Format the selectedDate for display */}
+                 <Button variant="ghost" className="text-sm font-medium h-8 px-2">{selectedDate ? format(selectedDate, "EEE, dd MMM") : "Select Date"}</Button>
                  <Button variant="ghost" size="icon" onClick={handleNextScheduleDay} className="h-8 w-8"><ChevronRight className="h-5 w-5" /></Button>
             </div>
             <div className="flex items-center gap-1">
@@ -312,7 +319,7 @@ export default function AdminDashboardPage() {
             ) : scheduleEvents.length === 0 ? (
                 <div className="text-center py-10 text-muted-foreground">
                     <CalendarDays className="h-12 w-12 mx-auto mb-2 opacity-50"/>
-                    <p>No events for {format(currentScheduleDate, "MMM do")}.</p>
+                    <p>No events for {selectedDate ? format(selectedDate, "MMM do") : "this date"}.</p>
                 </div>
             ) : (
                 scheduleEvents.map((event) => (
@@ -327,6 +334,7 @@ export default function AdminDashboardPage() {
                                 <p className="text-xs text-muted-foreground">
                                    <Clock className="inline h-3 w-3 mr-1" /> {event.time} {event.description ? `• ${event.description}` : ''}
                                 </p>
+                                <p className="text-xs text-muted-foreground capitalize">Audience: {event.audience || 'Admin'}</p>
                             </div>
                              <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
