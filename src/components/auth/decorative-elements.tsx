@@ -2,12 +2,12 @@
 import Image from 'next/image';
 
 const elements = [
-  { id: 1, src: "https://picsum.photos/150/150?random=1", alt: "Abstract 3D shape", dataAiHint: "geometric shape", position: "top-10 left-10", size: "w-20 h-20 md:w-28 md:h-28" },
-  { id: 2, src: "https://picsum.photos/120/120?random=2", alt: "Stylized book", dataAiHint: "book illustration", position: "top-1/3 left-1/4", size: "w-24 h-24 md:w-32 md:h-32 rotate-12" },
-  { id: 3, src: "https://picsum.photos/100/100?random=3", alt: "Floating pencil", dataAiHint: "pencil drawing", position: "top-3/4 left-1/2", size: "w-16 h-16 md:w-20 md:h-20 -rotate-12" },
-  { id: 4, src: "https://picsum.photos/80/80?random=4", alt: "Coffee cup", dataAiHint: "coffee cup", position: "bottom-10 right-10", size: "w-12 h-12 md:w-20 md:h-20" },
-  { id: 5, src: "https://picsum.photos/130/130?random=5", alt: "Geometric item", dataAiHint: "geometric item", position: "bottom-1/3 right-1/4", size: "w-16 h-16 md:w-24 md:h-24 rotate-45" },
-  { id: 6, src: "https://picsum.photos/90/90?random=6", alt: "Sticky notes", dataAiHint: "sticky notes", position: "top-1/2 right-1/3", size: "w-14 h-14 md:w-18 md:h-18 -rotate-6" },
+  { id: 1, src: "https://i.pinimg.com/736x/64/12/06/641206a289958a7f8db1037a99c6992d.jpg", alt: "Abstract 3D shape", dataAiHint: "geometric shape", position: "top-10 left-10", size: "w-70 h-70 md:w-58 md:h-58" },
+  { id: 2, src: "https://i.pinimg.com/736x/0f/9e/3c/0f9e3cdff8517fb81d175127d36c9e36.jpg", alt: "Stylized book", dataAiHint: "book illustration", position: "top-1/3 left-1/4", size: "w-64 h-64 md:w-42 md:h-42 rotate-12" },
+  { id: 3, src: "https://i.pinimg.com/736x/ff/d8/27/ffd82764d06f53372ffbe0c6c3747d2a.jpg", alt: "Floating pencil", dataAiHint: "pencil drawing", position: "top-3/4 left-1/2", size: "w-60 h-60 md:w-40 md:h-40 -rotate-12" },
+  { id: 4, src: "https://i.pinimg.com/736x/66/82/b3/6682b31b5916ca9b7b7e3d01644722d9.jpg", alt: "Coffee cup", dataAiHint: "coffee cup", position: "bottom-10 right-10", size: "w-82 h-82 md:w-60 md:h-60" },
+  { id: 5, src: "https://i.pinimg.com/736x/53/1f/04/531f04b4be56404d771b55e9563e70f2.jpg", alt: "Geometric item", dataAiHint: "geometric item", position: "bottom-1/3 right-1/4", size: "w-70 h-70 md:w-54 md:h-54 rotate-45" },
+  { id: 6, src: "https://i.pinimg.com/736x/6e/6d/25/6e6d259d859c01886bc4f1a36f666934.jpg", alt: "Router", dataAiHint: "sticky notes", position: "top-1/2 right-1/3", size: "w-70 h-70 md:w-58 md:h-58 -rotate-6" },
 ];
 
 export function DecorativeAuthElements() {
